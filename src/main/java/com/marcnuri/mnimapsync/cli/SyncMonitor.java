@@ -20,13 +20,14 @@
  */
 package com.marcnuri.mnimapsync.cli;
 
-import static com.marcnuri.mnimapsync.cli.CliMonitorReport.getMonitorReportAsText;
-
 import com.marcnuri.mnimapsync.MNIMAPSync;
+
 import java.io.IOException;
 import java.util.TimerTask;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static com.marcnuri.mnimapsync.cli.CliMonitorReport.getMonitorReportAsText;
 
 /**
  * Created by Marc Nuri <marc@marcnuri.com> on 2019-08-31.

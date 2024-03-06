@@ -16,16 +16,16 @@
  */
 package com.marcnuri.mnimapsync.index;
 
-import javax.mail.FetchProfile;
-import javax.mail.Folder;
-import javax.mail.Message;
-import javax.mail.MessagingException;
-import javax.mail.Store;
+import jakarta.mail.*;
 
-/**
- *
- * @author Marc Nuri <marc@marcnuri.com>
- */
+import java.sql.Connection;
+
+import jakarta.mail.*;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
 public final class FolderCrawler implements Runnable {
 
     private final Store store;
@@ -33,14 +33,16 @@ public final class FolderCrawler implements Runnable {
     private final int start;
     private final int end;
     private final Index index;
+    private final Connection connection;
 
     protected FolderCrawler(Store store, String folderName, int start, int end,
-            Index index) {
+                            Index index, Connection connection) {
         this.store = store;
         this.folderName = folderName;
         this.start = start;
         this.end = end;
         this.index = index;
+        this.connection = connection;
     }
 
     public void run() {
@@ -52,7 +54,6 @@ public final class FolderCrawler implements Runnable {
             final Message[] messages = folder.getMessages(start, end);
             folder.fetch(messages, MessageId.addHeaders(new FetchProfile()));
             for (Message message : messages) {
-                //Don't bother crawling if index has exceptions. Process won't continue
                 if (index.hasCrawlException()) {
                     return;
                 }
@@ -60,6 +61,17 @@ public final class FolderCrawler implements Runnable {
                     final MessageId messageId = new MessageId(message);
                     if (index.getFolderMessages(folderName).add(messageId)) {
                         indexedMessages++;
+                      /*  // Insert message into database
+                        try (PreparedStatement statement = connection.prepareStatement(
+                                "MERGE INTO messages (folder_name, message_id) KEY(message_id) VALUES (?, ?)")) {
+                            statement.setString(1, folderName);
+                            statement.setString(2, messageId.toString());
+                            statement.executeUpdate();
+                        } catch (SQLException e) {
+                            throw new RuntimeException(e);
+                        }
+
+                       */
                     } else {
                         skippedMessages++;
                     }
@@ -71,7 +83,7 @@ public final class FolderCrawler implements Runnable {
                 }
             }
             folder.close(false);
-        } catch (MessagingException messagingException) {
+        } catch (MessagingException  messagingException) {
             index.addCrawlException(messagingException);
         }
         index.updatedIndexedMessageCount(indexedMessages);

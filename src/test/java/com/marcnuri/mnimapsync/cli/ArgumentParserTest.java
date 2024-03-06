@@ -20,14 +20,14 @@
  */
 package com.marcnuri.mnimapsync.cli;
 
+import com.marcnuri.mnimapsync.SyncOptions;
+import org.junit.jupiter.api.Test;
+
 import static com.marcnuri.mnimapsync.cli.ArgumentParser.parseCliArguments;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
-
-import com.marcnuri.mnimapsync.SyncOptions;
-import org.junit.jupiter.api.Test;
 
 /**
  * Created by Marc Nuri <marc@marcnuri.com> on 2019-08-30.

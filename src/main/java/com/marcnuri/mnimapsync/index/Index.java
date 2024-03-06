@@ -16,7 +16,7 @@
  */
 package com.marcnuri.mnimapsync.index;
 
-import static com.marcnuri.mnimapsync.imap.IMAPUtils.INBOX_MAILBOX;
+import jakarta.mail.MessagingException;
 
 import java.util.Collections;
 import java.util.Map;
@@ -24,7 +24,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.mail.MessagingException;
+
+import static com.marcnuri.mnimapsync.imap.IMAPUtils.INBOX_MAILBOX;
 
 /**
  *

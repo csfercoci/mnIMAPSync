@@ -1,7 +1,7 @@
 FROM azul/zulu-openjdk-alpine:11-jre
 
-MAINTAINER Marc Nuri <marc@marcnuri.com>
-LABEL MAINTAINER="Marc Nuri <marc@marcnuri.com>"
+MAINTAINER Cristian Sfercoci <sfercoci123@proton.me>
+LABEL MAINTAINER="Cristian Sfercoci <sfercoci123@proton.me>"
 
 
 COPY ./build/libs /opt

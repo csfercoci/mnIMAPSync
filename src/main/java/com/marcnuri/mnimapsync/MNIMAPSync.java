@@ -16,23 +16,25 @@
  */
 package com.marcnuri.mnimapsync;
 
-import static com.marcnuri.mnimapsync.cli.ArgumentParser.parseCliArguments;
-import static com.marcnuri.mnimapsync.cli.CliSummaryReport.getSummaryReportAsText;
-import static com.marcnuri.mnimapsync.imap.IMAPUtils.openStore;
-import static com.marcnuri.mnimapsync.index.StoreCrawler.populateFromStore;
-
 import com.marcnuri.mnimapsync.cli.SyncMonitor;
 import com.marcnuri.mnimapsync.index.Index;
 import com.marcnuri.mnimapsync.store.StoreCopier;
 import com.marcnuri.mnimapsync.store.StoreDeleter;
 import com.sun.mail.imap.IMAPStore;
+import jakarta.mail.MessagingException;
+
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.sql.SQLException;
 import java.util.Date;
 import java.util.Timer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.mail.MessagingException;
+
+import static com.marcnuri.mnimapsync.cli.ArgumentParser.parseCliArguments;
+import static com.marcnuri.mnimapsync.cli.CliSummaryReport.getSummaryReportAsText;
+import static com.marcnuri.mnimapsync.imap.IMAPUtils.openStore;
+import static com.marcnuri.mnimapsync.index.StoreCrawler.populateFromStore;
 
 /**
  *
@@ -80,7 +82,7 @@ public class MNIMAPSync {
     }
 
     private void indexTargetStore()
-        throws MessagingException, GeneralSecurityException, InterruptedException {
+            throws MessagingException, GeneralSecurityException, InterruptedException, SQLException {
 
         try (final IMAPStore targetStore = openStore(syncOptions.getTargetHost(),
             syncOptions.getThreads())) {
@@ -124,7 +126,7 @@ public class MNIMAPSync {
             if (syncOptions.getDelete() && !sourceCopier.hasCopyException()) {
                 deleteFromTarget();
             }
-        } catch (MessagingException | GeneralSecurityException ex) {
+        } catch (MessagingException | GeneralSecurityException | SQLException ex) {
             Logger.getLogger(MNIMAPSync.class.getName()).log(Level.SEVERE, null, ex);
         } catch (InterruptedException ex) {
             Logger.getLogger(MNIMAPSync.class.getName()).log(Level.SEVERE, null, ex);

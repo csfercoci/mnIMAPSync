@@ -16,12 +16,16 @@
  */
 package com.marcnuri.mnimapsync.store;
 
-import static com.marcnuri.mnimapsync.imap.IMAPUtils.sourceFolderNameToTarget;
-
 import com.marcnuri.mnimapsync.MNIMAPSync;
 import com.marcnuri.mnimapsync.index.Index;
 import com.sun.mail.imap.IMAPFolder;
 import com.sun.mail.imap.IMAPStore;
+import jakarta.mail.Folder;
+import jakarta.mail.MessagingException;
+import jakarta.mail.ReadOnlyFolderException;
+import jakarta.mail.event.MessageCountAdapter;
+import org.graalvm.compiler.api.replacements.Fold;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,9 +36,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.mail.Folder;
-import javax.mail.MessagingException;
-import javax.mail.ReadOnlyFolderException;
+
+import static com.marcnuri.mnimapsync.imap.IMAPUtils.INBOX_MAILBOX;
+import static com.marcnuri.mnimapsync.imap.IMAPUtils.sourceFolderNameToTarget;
 
 /**
  *
@@ -91,17 +95,21 @@ public final class StoreCopier {
      */
     private void copySourceFolder(Folder folder) throws MessagingException {
         final String sourceFolderName = folder.getFullName();
-        final String targetFolderName = sourceFolderNameToTarget(sourceFolderName, sourceIndex,
+         String targetFolderName = sourceFolderNameToTarget(sourceFolderName, sourceIndex,
             targetIndex);
         //Index for delete after copy (if necessary)
         if (sourceIndex != null) {
             sourceIndex.addFolder(sourceFolderName);
         }
         //Copy folder
+        Folder targetStoreFolder=targetStore.getFolder(targetFolderName);
         if (!targetIndex.containsFolder(targetFolderName)) {
-            if (!targetStore.getFolder(targetFolderName).create(folder.getType())) {
+
+            if (!targetStoreFolder.exists() && !targetStoreFolder.create(folder.getType())) {
                 throw new MessagingException(String.format(
-                        "Couldn't create folder: %s in target server.", sourceFolderName));
+                        "Couldn't create folder: %s in target server with path  %s.\n", sourceFolderName ,targetStoreFolder.getFullName()));
+            }else{
+                    System.out.println("Folder existed" + targetFolderName + " "+  targetStoreFolder.exists());
             }
             incrementFoldersCopiedCount();
         } else {
@@ -127,16 +135,18 @@ public final class StoreCopier {
             if ((sourceFolder.getType() & Folder.HOLDS_MESSAGES) == Folder.HOLDS_MESSAGES) {
                 //Manage Servers with public/read only folders.
                 try {
-                    sourceFolder.open(Folder.READ_WRITE);
+                    if (!sourceFolder.isOpen()) {
+                        sourceFolder.open(Folder.READ_WRITE);
+                    }
                 } catch (ReadOnlyFolderException ex) {
-                    sourceFolder.open(Folder.READ_ONLY);
-                }
-                if (sourceFolder.getMode() != Folder.READ_ONLY) {
-                    sourceFolder.expunge();
+                    if (sourceFolder.getMode() != Folder.READ_ONLY) {
+                        sourceFolder.expunge();
+                    }
                 }
                 ///////////////////////
                 final int messageCount = sourceFolder.getMessageCount();
                 sourceFolder.close(false);
+
                 int pos = 1;
                 while (pos + MNIMAPSync.BATCH_SIZE <= messageCount) {
                     //Copy messages

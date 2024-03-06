@@ -25,11 +25,13 @@ import com.marcnuri.mnimapsync.index.Index;
 import com.sun.mail.imap.IMAPSSLStore;
 import com.sun.mail.imap.IMAPStore;
 import com.sun.mail.util.MailSSLSocketFactory;
+import jakarta.mail.MessagingException;
+import jakarta.mail.Session;
+
 import java.security.GeneralSecurityException;
 import java.util.Optional;
 import java.util.Properties;
-import javax.mail.MessagingException;
-import javax.mail.Session;
+
 
 /**
  * Created by Marc Nuri <marc@marcnuri.com> on 2019-08-31.
@@ -63,6 +65,19 @@ public class IMAPUtils {
     final Properties properties = new Properties();
     properties.put("mail.debug", "false");
     properties.put("mail.imap.starttls.enable", true);
+    properties.put("mail.mime.address.strict", false);
+    properties.put("mail.mime.allowutf8", true);
+    properties.put("mail.mime.address.usecanonicalhostname",true);
+    properties.put("mail.mime.decodeparameters",true);
+    properties.put("mail.mime.encodeparameters",true);
+    properties.put("mail.mime.contentdisposition.strict", "false"); // default true
+    properties.put("mail.imaps.ssl.checkserveridentity", "false");
+    properties.put("mail.imaps.ssl.trust", "*");
+
+    properties.put("mail.mime.charset", "UTF-8"); // Set character encoding
+
+
+
     properties.setProperty("mail.imap.connectionpoolsize", String.valueOf(threads));
     if (hostDefinition.isSsl()) {
       properties.put("mail.imap.ssl.enable", hostDefinition.isSsl());
@@ -91,7 +106,7 @@ public class IMAPUtils {
   }
 
   private static String translateFolder(String folderName, Index sourceIndex, Index targetIndex) {
-    return folderName.replace(sourceIndex.getFolderSeparator(), targetIndex.getFolderSeparator());
+    return folderName.replace(targetIndex.getFolderSeparator(),sourceIndex.getFolderSeparator());
   }
 
   public static String sourceFolderNameToTarget(String sourceFolderFullName,

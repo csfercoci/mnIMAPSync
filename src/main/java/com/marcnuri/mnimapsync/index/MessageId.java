@@ -16,18 +16,16 @@
  */
 package com.marcnuri.mnimapsync.index;
 
+import com.marcnuri.mnimapsync.imap.MessageHelper;
 import com.sun.mail.imap.IMAPFolder;
+import com.sun.tools.javac.util.Assert;
+import jakarta.mail.*;
+import jakarta.mail.internet.InternetAddress;
+
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.mail.FetchProfile;
-import javax.mail.Message;
-import javax.mail.MessagingException;
 
 /**
  * Class to create a reusable message ID for identification in maps and comparisons of source/target
@@ -40,47 +38,70 @@ public class MessageId implements Serializable {
     private static final long serialVersionUID = 8724942298665055562L;
 
     private static final String HEADER_SUBJECT = "Subject";
-    private static final String HEADER_MESSAGE_ID = "Message-Id";
+    private static final String HEADER_MESSAGE_ID = "Message-ID";
     private static final String HEADER_FROM = "From";
     private static final String HEADER_TO = "To";
     private static final Pattern emailPattern = Pattern.compile(
             "[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,4}");
     private final String messageIdHeader;
+
+    private final MessageHelper messageHelper;
     private final String[] from;
     private final String[] to;
     private final String subject;
 
+    private final Date date;
+
     //Method using headers Safer but slower
+
     /**
      * All of this process could be done just by using the ENVELOPE response from the IMAP fetch
      * command. The problem is that ENVELOPE is not consistent amongst different servers, so
      * sometimes a same e-mail will have different envelope responses in different servers, so they
      * will duplicate.
-     *
+     * <p>
      * It's a pity because fetching all of the HEADERS is a performance HOG
      */
     public MessageId(Message message) throws MessageIdException {
+        messageHelper = new MessageHelper(message);
         try {
             final String[] idHeader = message.getHeader(HEADER_MESSAGE_ID);
-            final String[] subjectHeader = message.getHeader(HEADER_SUBJECT);
+            String[] subjectHeader= new String[]{messageHelper.getSubject()};
+            if (subjectHeader[0]!=null){
+                //inconsitency with yahoo
+                subjectHeader= new String[]{message.getSubject()==null?"":message.getSubject().toLowerCase()};
+            }
             this.messageIdHeader = idHeader != null && idHeader.length > 0
                     ? idHeader[0].trim().replaceAll("[^a-zA-Z0-9\\\\.\\\\-\\\\@]", "")
                     : "";
             //Irregular mails have more than one header for From or To fields
             //This can cause that different servers respond differently
-            this.from = parseAddress(message.getHeader(HEADER_FROM));
-            this.to = parseAddress(message.getHeader(HEADER_TO));
+            this.from = parseAddress(messageHelper.getFrom());
+            this.to = parseAddress(message.getRecipients(Message.RecipientType.TO));
+            this.date = message.getReceivedDate();
             //Regular subject may have some problems when using non ascii characters
             //Loss of precision, but I don't think it's necessary
-            this.subject = subjectHeader != null && subjectHeader.length > 0
+            this.subject = subjectHeader != null && subjectHeader.length > 0 && subjectHeader[0]!=null
                     ? subjectHeader[0].replaceAll("[^a-zA-Z0-9\\\\.\\\\-]", "")
                     : "";
             if (this.messageIdHeader.equals("") && subject.equals("")) {
                 throw new MessageIdException("No good fields for Id", null);
             }
+
+
         } catch (MessagingException messagingException) {
             throw new MessageIdException("Messaging Exception", messagingException);
         }
+
+    }
+
+
+    public static Set<MessageId> asMessageIds(Message[] messages) throws MessagingException, MessageIdException {
+        Set<MessageId> messageIds = new HashSet<>();
+        for (Message message : messages) {
+            messageIds.add(new MessageId(message));
+        }
+        return messageIds;
     }
 
     @Override
@@ -93,9 +114,9 @@ public class MessageId implements Serializable {
         }
         MessageId messageId1 = (MessageId) o;
         return Objects.equals(messageIdHeader, messageId1.messageIdHeader) &&
-            Arrays.equals(from, messageId1.from) &&
-            Arrays.equals(to, messageId1.to) &&
-            Objects.equals(subject, messageId1.subject);
+                Arrays.equals(from, messageId1.from) &&
+                Arrays.equals(to, messageId1.to) &&
+                Objects.equals(subject, messageId1.subject);
     }
 
     @Override
@@ -113,12 +134,26 @@ public class MessageId implements Serializable {
         if (addresses != null) {
             final List<String> ret = new ArrayList<>(addresses.length);
             for (String address : addresses) {
-                final Matcher matcher = emailPattern.matcher(address.toUpperCase());
+                final Matcher matcher = emailPattern.matcher(address.toLowerCase());
                 while (matcher.find()) {
                     ret.add(matcher.group());
                 }
             }
             Collections.sort(ret);
+            return ret.toArray(new String[0]);
+        }
+        return new String[0];
+    }
+
+    private static String[] parseAddress(Address[] addresses) {
+        if (addresses != null) {
+            final Set<String> ret = new TreeSet<>();
+            for (Address address :(Address[]) addresses) {
+                final Matcher matcher = emailPattern.matcher(address.toString().toUpperCase());
+                while (matcher.find()) {
+                    ret.add(matcher.group());
+                }
+            }
             return ret.toArray(new String[0]);
         }
         return new String[0];
@@ -156,5 +191,16 @@ public class MessageId implements Serializable {
             return (MessagingException) super.getCause();
         }
 
+    }
+
+
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", MessageId.class.getSimpleName() + "[", "]")
+                .add("messageIdHeader='" + messageIdHeader + "'")
+                .add("from=" + Arrays.toString(from))
+                .add("to=" + Arrays.toString(to))
+                .add("subject='" + subject + "'")
+                .toString();
     }
 }

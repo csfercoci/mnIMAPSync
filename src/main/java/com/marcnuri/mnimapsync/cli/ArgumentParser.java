@@ -21,71 +21,86 @@
 package com.marcnuri.mnimapsync.cli;
 
 import com.marcnuri.mnimapsync.SyncOptions;
+
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Optional;
 import java.util.Queue;
 
-/**
- * Created by Marc Nuri <marc@marcnuri.com> on 2019-08-30.
- */
+import org.apache.commons.cli.*;
+
 public class ArgumentParser {
-
-  private ArgumentParser() {
-  }
-
   public static SyncOptions parseCliArguments(String[] arguments) {
-    final SyncOptions result = new SyncOptions();
-    final Queue<String> argumentQueue = new LinkedList<>(Arrays.asList(arguments));
-    String currentArgument;
-    while ((currentArgument = argumentQueue.peek()) != null) {
-      parseArgument("--host1", argumentQueue,
-          key -> result.getSourceHost().setHost(argumentQueue.poll()));
-      parseArgument("--port1", argumentQueue,
-          key -> result.getSourceHost().setPort(parseIntValue(key, argumentQueue.poll())));
-      parseArgument("--user1", argumentQueue,
-          key -> result.getSourceHost().setUser(argumentQueue.poll()));
-      parseArgument("--password1", argumentQueue,
-          key -> result.getSourceHost().setPassword(argumentQueue.poll()));
-      parseArgument("--ssl1", argumentQueue, key -> result.getSourceHost().setSsl(true));
-      parseArgument("--host2", argumentQueue,
-          key -> result.getTargetHost().setHost(argumentQueue.poll()));
-      parseArgument("--port2", argumentQueue,
-          key -> result.getTargetHost().setPort(parseIntValue(key, argumentQueue.poll())));
-      parseArgument("--user2", argumentQueue,
-          key -> result.getTargetHost().setUser(argumentQueue.poll()));
-      parseArgument("--password2", argumentQueue,
-          key -> result.getTargetHost().setPassword(argumentQueue.poll()));
-      parseArgument("--ssl2", argumentQueue, key -> result.getTargetHost().setSsl(true));
-      parseArgument("--delete", argumentQueue, key -> result.setDelete(true));
-      parseArgument("--threads", argumentQueue,
-          key -> result.setThreads(parseIntValue(key, argumentQueue.poll())));
-      if (currentArgument.equals(argumentQueue.peek())) {
-        throw new IllegalArgumentException(
-            String.format("Unrecognized argument: %s", currentArgument));
-      }
+    Options options = createOptions();
+    CommandLineParser parser = new DefaultParser();
+    SyncOptions result = new SyncOptions();
+
+    try {
+      CommandLine cmd = parser.parse(options, arguments);
+
+      result.getSourceHost().setHost(cmd.getOptionValue("host1"));
+      result.getSourceHost().setPort(parseIntValue("port1", cmd.getOptionValue("port1")));
+      result.getSourceHost().setUser(cmd.getOptionValue("user1"));
+      result.getSourceHost().setPassword(cmd.getOptionValue("password1"));
+      result.getSourceHost().setSsl(cmd.hasOption("ssl1"));
+
+      result.getTargetHost().setHost(cmd.getOptionValue("host2"));
+      result.getTargetHost().setPort(parseIntValue("port2", cmd.getOptionValue("port2")));
+      result.getTargetHost().setUser(cmd.getOptionValue("user2"));
+      result.getTargetHost().setPassword(cmd.getOptionValue("password2"));
+      result.getTargetHost().setSsl(cmd.hasOption("ssl2"));
+
+      result.setDelete(cmd.hasOption("delete"));
+      result.setThreads(parseIntValue("threads", cmd.getOptionValue("threads")));
+
+    } catch (ParseException e) {
+      System.err.println("Parsing failed. Reason: " + e.getMessage());
+      System.out.println("Parsing failed. Reason: " + e.getMessage());
+
+      printHelp(options);
+
+      System.exit(1);
     }
+
     return result;
   }
 
-  private static void parseArgument(String expectedKey, Queue<String> arguments,
-      ParserAction parserAction) {
-    if (expectedKey.equals(arguments.peek())) {
-      parserAction.action(arguments.poll());
-    }
+  private static Options createOptions() {
+    Options options = new Options();
+
+    options.addOption(Option.builder().longOpt("host1").hasArg().desc("Source host").required().build());
+    options.addOption(Option.builder().longOpt("port1").hasArg().desc("Source port").required().build());
+    options.addOption(Option.builder().longOpt("user1").hasArg().desc("Source user").required().build());
+    options.addOption(Option.builder().longOpt("password1").hasArg().desc("Source password").required().build());
+    options.addOption(Option.builder().longOpt("ssl1").desc("Enable SSL for source").build());
+
+    options.addOption(Option.builder().longOpt("host2").hasArg().desc("Target host").required().build());
+    options.addOption(Option.builder().longOpt("port2").hasArg().desc("Target port").required().build());
+    options.addOption(Option.builder().longOpt("user2").hasArg().desc("Target user").required().build());
+    options.addOption(Option.builder().longOpt("password2").hasArg().desc("Target password").required().build());
+    options.addOption(Option.builder().longOpt("ssl2").desc("Enable SSL for target").build());
+
+    options.addOption(Option.builder().longOpt("delete").desc("Enable delete operation").build());
+    options.addOption(Option.builder().longOpt("threads").hasArg().desc("Number of threads").build());
+
+    return options;
   }
 
+  private static void printHelp(Options options) {
+    HelpFormatter formatter = new HelpFormatter();
+    formatter.printHelp("java -jar your-application.jar", options);
+  }
   private static int parseIntValue(String key, String intValue) {
     try {
-      return Integer.parseInt(Optional.ofNullable(intValue)
-          .orElseThrow(() -> new IllegalArgumentException(
-              String.format("%s requires a valid integer as a value", key))));
-    } catch (NumberFormatException numberFormatException) {
-      throw new IllegalArgumentException(String.format("%s value should be an integer", key));
+      return Integer.parseInt(intValue);
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException(String.format("%s requires a valid integer as a value", key));
     }
   }
 
-  @FunctionalInterface
+
+
+@FunctionalInterface
   private interface ParserAction {
 
     void action(String key);

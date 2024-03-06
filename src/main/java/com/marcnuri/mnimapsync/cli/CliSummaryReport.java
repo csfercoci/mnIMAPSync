@@ -23,6 +23,7 @@ package com.marcnuri.mnimapsync.cli;
 import com.marcnuri.mnimapsync.MNIMAPSync;
 import com.marcnuri.mnimapsync.store.StoreCopier;
 import com.marcnuri.mnimapsync.store.StoreDeleter;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Locale;

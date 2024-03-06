@@ -20,29 +20,26 @@
  */
 package com.marcnuri.mnimapsync.imap;
 
-import static com.marcnuri.mnimapsync.imap.IMAPUtils.openStore;
-import static com.marcnuri.mnimapsync.imap.IMAPUtils.sourceFolderNameToTarget;
-import static com.marcnuri.mnimapsync.imap.IMAPUtils.targetToSourceFolderName;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-
 import com.marcnuri.mnimapsync.HostDefinition;
 import com.marcnuri.mnimapsync.index.Index;
 import com.sun.mail.imap.IMAPSSLStore;
 import com.sun.mail.imap.IMAPStore;
-import java.util.Properties;
-import javax.mail.Authenticator;
-import javax.mail.Session;
+import jakarta.mail.Authenticator;
+import jakarta.mail.Session;
 import mockit.Mock;
 import mockit.MockUp;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+
+import java.util.Properties;
+
+import static com.marcnuri.mnimapsync.imap.IMAPUtils.*;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 /**
  * Created by Marc Nuri <marc@marcnuri.com> on 2019-08-31.

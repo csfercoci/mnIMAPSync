@@ -18,14 +18,11 @@ package com.marcnuri.mnimapsync.store;
 
 import com.marcnuri.mnimapsync.index.Index;
 import com.marcnuri.mnimapsync.index.MessageId;
+import jakarta.mail.*;
+
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.mail.FetchProfile;
-import javax.mail.Flags;
-import javax.mail.Folder;
-import javax.mail.Message;
-import javax.mail.MessagingException;
 
 /**
  *
@@ -72,6 +69,8 @@ public final class MessageDeleter implements Runnable {
                 } catch (MessageId.MessageIdException ex) {
                     //Usually messages that ran into this exception are spammy, so we skip them.
                     skipped++;
+                } catch (MessagingException e) {
+                    throw new RuntimeException(e);
                 }
             }
             //Close folder and expunge flagged messages

@@ -20,17 +20,17 @@
  */
 package com.marcnuri.mnimapsync.index;
 
+import com.marcnuri.mnimapsync.index.MessageId.MessageIdException;
+import com.sun.mail.imap.IMAPMessage;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.doReturn;
-
-import com.marcnuri.mnimapsync.index.MessageId.MessageIdException;
-import com.sun.mail.imap.IMAPMessage;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 /**
  * Created by Marc Nuri <marc@marcnuri.com> on 2019-08-18.

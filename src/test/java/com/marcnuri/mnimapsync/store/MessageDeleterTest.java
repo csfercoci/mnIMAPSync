@@ -20,27 +20,26 @@
  */
 package com.marcnuri.mnimapsync.store;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-
 import com.marcnuri.mnimapsync.index.Index;
 import com.marcnuri.mnimapsync.index.MessageId;
 import com.sun.mail.imap.IMAPFolder;
 import com.sun.mail.imap.IMAPMessage;
 import com.sun.mail.imap.IMAPStore;
-import java.util.HashSet;
-import java.util.Set;
-import javax.mail.Flags.Flag;
-import javax.mail.Message;
+import jakarta.mail.Flags;
+import jakarta.mail.Message;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+
+import java.util.HashSet;
+import java.util.Set;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 /**
  * Created by Marc Nuri <marc@marcnuri.com> on 2019-08-18.
@@ -124,7 +123,7 @@ class MessageDeleterTest {
     // When
     messageDeleter.run();
     // Then
-    verify(deletableMessage, times(1)).setFlag(eq(Flag.DELETED), eq(true));
+    verify(deletableMessage, times(1)).setFlag(eq(Flags.Flag.DELETED), eq(true));
     verify(imapFolder, times(1)).close(eq(true));
     verify(storeDeleter, times(1)).updatedMessagesDeletedCount(eq(1L));
     verify(storeDeleter, times(1)).updateMessagesSkippedCount(eq(1L));

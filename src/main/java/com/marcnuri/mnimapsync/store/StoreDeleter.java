@@ -16,11 +16,13 @@
  */
 package com.marcnuri.mnimapsync.store;
 
-import static com.marcnuri.mnimapsync.imap.IMAPUtils.targetToSourceFolderName;
-
 import com.marcnuri.mnimapsync.MNIMAPSync;
 import com.marcnuri.mnimapsync.index.Index;
 import com.sun.mail.imap.IMAPStore;
+import jakarta.mail.Folder;
+import jakarta.mail.MessagingException;
+
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -28,8 +30,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.mail.Folder;
-import javax.mail.MessagingException;
+
+import static com.marcnuri.mnimapsync.imap.IMAPUtils.targetToSourceFolderName;
 
 /**
  *

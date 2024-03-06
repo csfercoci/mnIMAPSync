@@ -20,29 +20,24 @@
  */
 package com.marcnuri.mnimapsync.index;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
-import com.marcnuri.mnimapsync.index.FolderCrawler;
-import com.marcnuri.mnimapsync.index.Index;
-import com.marcnuri.mnimapsync.index.MessageId;
 import com.sun.mail.imap.IMAPMessage;
 import com.sun.mail.imap.IMAPStore;
-import javax.mail.Folder;
-import javax.mail.Message;
-import javax.mail.MessagingException;
+import jakarta.mail.Folder;
+import jakarta.mail.Message;
+import jakarta.mail.MessagingException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+
+import java.sql.Connection;
+
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Created by Marc Nuri <marc@marcnuri.com> on 2019-08-16.
@@ -71,8 +66,9 @@ class FolderCrawlerTest {
   @Test
   void run_emptyFolder_shouldOnlyUpdateIndexes() throws Exception {
     // Given
+    Connection connection;
     final FolderCrawler folderCrawler = new FolderCrawler(
-        imapStore, "FolderName", 0, 100, index);
+        imapStore, "FolderName", 0, 100, index, connection);
     doReturn(new Message[0]).when(folder).getMessages(eq(0), eq(100));
     // When
     folderCrawler.run();
@@ -85,8 +81,9 @@ class FolderCrawlerTest {
   @Test
   void run_notEmptyFolderAndStoreWithExceptions_shouldReturn() throws Exception {
     // Given
+    Connection connection;
     final FolderCrawler folderCrawler = new FolderCrawler(
-        imapStore, "FolderName", 0, 100, index);
+        imapStore, "FolderName", 0, 100, index, connection);
     final Message message = Mockito.mock(Message.class);
     doReturn(new Message[]{message}).when(folder).getMessages(eq(0), eq(100));
     doReturn(true).when(index).hasCrawlException();
@@ -101,8 +98,9 @@ class FolderCrawlerTest {
   @Test
   void run_notEmptyFolderAndRepeatedMessages_shouldUpdateIndexes() throws Exception {
     // Given
+    Connection connection=null ;
     final FolderCrawler folderCrawler = new FolderCrawler(
-        imapStore, "FolderName", 0, 100, index);
+        imapStore, "FolderName", 0, 100, index, connection);
     final IMAPMessage message = Mockito.mock(IMAPMessage.class);
     doReturn(new String[]{"1337"}).when(message).getHeader("Message-Id");
     final IMAPMessage repeatedMessage = Mockito.mock(IMAPMessage.class);
@@ -120,8 +118,9 @@ class FolderCrawlerTest {
   @Test
   void run_notEmptyFolderAndThrowsMessageIdExceptionWithCause_shouldUpdateIndexesAndAddCrawlException() throws Exception {
     // Given
+    Connection connection = null;
     final FolderCrawler folderCrawler = new FolderCrawler(
-        imapStore, "FolderName", 0, 100, index);
+        imapStore, "FolderName", 0, 100, index, connection);
     final IMAPMessage message = Mockito.mock(IMAPMessage.class);
     doThrow(new MessagingException()).when(message).getHeader("Message-Id");
     doReturn(new Message[]{message}).when(folder).getMessages(eq(0), eq(100));

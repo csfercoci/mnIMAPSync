@@ -20,16 +20,12 @@ import com.marcnuri.mnimapsync.index.Index;
 import com.marcnuri.mnimapsync.index.MessageId;
 import com.sun.mail.imap.IMAPFolder;
 import com.sun.mail.imap.IMAPMessage;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import jakarta.mail.*;
+import jakarta.mail.search.MessageIDTerm;
+
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.mail.FetchProfile;
-import javax.mail.Folder;
-import javax.mail.Message;
-import javax.mail.MessagingException;
-import javax.mail.ReadOnlyFolderException;
 
 /**
  *
@@ -54,6 +50,14 @@ public final class MessageCopier implements Runnable {
         this.targetFolderMessages = targetFolderMessages;
     }
 
+    private static String getMessageId(Message message) throws MessagingException {
+        String[] messageIdHeaders = message.getHeader("Message-ID");
+        if (messageIdHeaders != null && messageIdHeaders.length > 0) {
+            return messageIdHeaders[0]; // Return the first Message-ID header found
+        } else {
+            return null; // Message-ID header not found
+        }
+    }
     public void run() {
         final int updateCount = 20;
         long copied = 0L, skipped = 0L;
@@ -68,8 +72,9 @@ public final class MessageCopier implements Runnable {
             }
             final Message[] sourceMessages = sourceFolder.getMessages(start, end);
             sourceFolder.fetch(sourceMessages, MessageId.addHeaders(new FetchProfile()));
+
             final List<Message> toCopy = new ArrayList<>();
-            for (Message message : sourceMessages) {
+                    for (Message message : sourceMessages) {
                 try {
                     final MessageId id = new MessageId(message);
                     //Index message for deletion (if necessary)

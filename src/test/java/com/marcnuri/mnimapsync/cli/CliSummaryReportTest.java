@@ -20,16 +20,16 @@
  */
 package com.marcnuri.mnimapsync.cli;
 
+import com.marcnuri.mnimapsync.MNIMAPSync;
+import com.marcnuri.mnimapsync.store.StoreCopier;
+import com.marcnuri.mnimapsync.store.StoreDeleter;
+import org.junit.jupiter.api.Test;
+
 import static com.marcnuri.mnimapsync.cli.CliSummaryReport.getSummaryReportAsText;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-
-import com.marcnuri.mnimapsync.MNIMAPSync;
-import com.marcnuri.mnimapsync.store.StoreCopier;
-import com.marcnuri.mnimapsync.store.StoreDeleter;
-import org.junit.jupiter.api.Test;
 
 /**
  * Created by Marc Nuri <marc@marcnuri.com> on 2019-08-30.
