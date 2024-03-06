@@ -21,9 +21,10 @@ from java.
 - Deletion of no longer existing messages and folders
 
 ## Requirements
-- Java 1.5
+- Java 1.8
 
 ## Releases
+- [0.0.4 beta] add utf8 support for subject and different helpers(charse,address loading)
 - [0.0.3-alpha](https://github.com/manusa/mnIMAPSync/releases/download/0.0.3-alpha/mnIMAPSync-0.0.3-alpha.zip)
 - [0.0.2-alpha](https://github.com/manusa/mnIMAPSync/releases/download/0.0.2-alpha/mnIMAPSync-0.0.2-alpha.zip)
 - [0.0.1-alpha](https://github.com/manusa/mnIMAPSync/releases/download/0.01-alpha/mnIMAPSync-0.0.1-alpha.zip)
@@ -93,5 +94,6 @@ messages in the target server.
 - [hMailServer](http://www.hmailserver.com)
 - [Gmail](http://mail.google.com)
 - [Zimbra Collaboration](http://www.zimbra.com)
+- [Yahoo](http://mail.yahoo.com) 
 
 Please, share your experience with any other server.
