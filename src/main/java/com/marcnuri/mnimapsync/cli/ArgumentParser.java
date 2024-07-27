@@ -21,12 +21,6 @@
 package com.marcnuri.mnimapsync.cli;
 
 import com.marcnuri.mnimapsync.SyncOptions;
-
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.Optional;
-import java.util.Queue;
-
 import org.apache.commons.cli.*;
 
 public class ArgumentParser {

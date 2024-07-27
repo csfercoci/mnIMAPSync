@@ -18,9 +18,10 @@ package com.marcnuri.mnimapsync.index;
 
 import com.marcnuri.mnimapsync.imap.MessageHelper;
 import com.sun.mail.imap.IMAPFolder;
-import com.sun.tools.javac.util.Assert;
-import jakarta.mail.*;
-import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.Address;
+import jakarta.mail.FetchProfile;
+import jakarta.mail.Message;
+import jakarta.mail.MessagingException;
 
 import java.io.Serializable;
 import java.util.*;
@@ -169,6 +170,7 @@ public class MessageId implements Serializable {
         //when hMailServer is fetched for To or From, it returns only the first entry,
         //so when compared with other server versions, e-mails appear to be different.
         fetchProfile.add(IMAPFolder.FetchProfileItem.HEADERS);
+        fetchProfile.add(MessageId.HEADER_MESSAGE_ID);
         //If using the header consructor add this for performance.
 //        for (String header : new String[]{
 //            MessageId.HEADER_MESSAGE_ID,

@@ -21,9 +21,10 @@ import com.marcnuri.mnimapsync.index.MessageId;
 import com.sun.mail.imap.IMAPFolder;
 import com.sun.mail.imap.IMAPMessage;
 import jakarta.mail.*;
-import jakarta.mail.search.MessageIDTerm;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -101,6 +102,7 @@ public final class MessageCopier implements Runnable {
                 sourceFolder.fetch(toCopy.toArray(new Message[0]), fullProfile);
                 final Folder targetFolder = storeCopier.getTargetStore().getFolder(targetFolderName);
                 targetFolder.open(Folder.READ_WRITE);
+                System.out.println(String.format("Copy to this folder: %s start=%d, end=%d, total=%d", targetFolderName,start, end,toCopy.size()));
                 for (Message message : toCopy) {
                     targetFolder.appendMessages(new Message[]{message});
                     try {

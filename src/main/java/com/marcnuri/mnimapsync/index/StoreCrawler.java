@@ -1,20 +1,10 @@
 package com.marcnuri.mnimapsync.index;
 
 import com.marcnuri.mnimapsync.MNIMAPSync;
-import com.marcnuri.mnimapsync.index.FolderCrawler;
 import jakarta.mail.Folder;
 import jakarta.mail.MessagingException;
 import jakarta.mail.Store;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import jakarta.mail.Folder;
-import jakarta.mail.MessagingException;
-import jakarta.mail.Store;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;

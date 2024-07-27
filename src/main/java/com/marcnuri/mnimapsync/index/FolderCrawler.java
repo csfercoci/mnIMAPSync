@@ -20,12 +20,6 @@ import jakarta.mail.*;
 
 import java.sql.Connection;
 
-import jakarta.mail.*;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-
 public final class FolderCrawler implements Runnable {
 
     private final Store store;

@@ -23,8 +23,6 @@ import com.sun.mail.imap.IMAPStore;
 import jakarta.mail.Folder;
 import jakarta.mail.MessagingException;
 import jakarta.mail.ReadOnlyFolderException;
-import jakarta.mail.event.MessageCountAdapter;
-import org.graalvm.compiler.api.replacements.Fold;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,7 +35,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.marcnuri.mnimapsync.imap.IMAPUtils.INBOX_MAILBOX;
 import static com.marcnuri.mnimapsync.imap.IMAPUtils.sourceFolderNameToTarget;
 
 /**
@@ -162,6 +159,7 @@ public final class StoreCopier {
             //Folder recursion. Get all children
             if ((sourceFolder.getType() & Folder.HOLDS_FOLDERS) == Folder.HOLDS_FOLDERS) {
                 for (Folder child : sourceFolder.list()) {
+                    //if (child.getName().toUpperCase().contains("INBOX"))
                     copySourceMessages((IMAPFolder) child);
                 }
             }
