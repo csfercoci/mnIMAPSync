@@ -25,14 +25,15 @@ import com.marcnuri.mnimapsync.index.Index;
 import com.sun.mail.imap.IMAPSSLStore;
 import com.sun.mail.imap.IMAPStore;
 import jakarta.mail.Authenticator;
+import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
-import mockit.Mock;
-import mockit.MockUp;
+import org.mockito.MockedStatic;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.marcnuri.mnimapsync.imap.IMAPUtils.*;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -53,12 +54,6 @@ class IMAPUtilsTest {
   @SuppressWarnings("unused")
   void setUp() {
     session = mock(Session.class);
-    new MockUp<Session>() {
-      @Mock
-      Session getInstance(Properties props, Authenticator authenticator) {
-        return session;
-      }
-    };
     sourceIndex = mock(Index.class);
     doReturn(".").when(sourceIndex).getFolderSeparator();
     doReturn("InBox").when(sourceIndex).getInbox();
@@ -85,10 +80,15 @@ class IMAPUtilsTest {
     hostDefinition.setUser("the-user");
     hostDefinition.setPassword("the-pw");
     // When
-    final IMAPStore store = openStore(hostDefinition, 1);
+    try (MockedStatic<Session> mockedSession = mockStatic(Session.class)) {
+      mockedSession.when(() -> Session.getInstance(any(Properties.class), eq((Authenticator) null)))
+          .thenReturn(session);
+      final IMAPStore store = openStore(hostDefinition, 1);
+      // Then
+      assertThat(store, equalTo(mockedStore));
+    }
     // Then
-    assertThat(store, equalTo(mockedStore));
-    verify(store, times(1))
+    verify(mockedStore, times(1))
         .connect(eq("mail.host"), eq(1337), eq("the-user"), eq("the-pw"));
   }
 
@@ -104,11 +104,67 @@ class IMAPUtilsTest {
     hostDefinition.setPassword("the-pw");
     hostDefinition.setSsl(true);
     // When
-    final IMAPStore store = openStore(hostDefinition, 1);
+    try (MockedStatic<Session> mockedSession = mockStatic(Session.class)) {
+      mockedSession.when(() -> Session.getInstance(any(Properties.class), eq((Authenticator) null)))
+          .thenReturn(session);
+      final IMAPStore store = openStore(hostDefinition, 1);
+      // Then
+      assertThat(store, equalTo(mockedStore));
+    }
     // Then
-    assertThat(store, equalTo(mockedStore));
-    verify(store, times(1))
+    verify(mockedStore, times(1))
         .connect(eq("mail.host"), eq(1337), eq("the-user"), eq("the-pw"));
+  }
+
+  @Test
+  void openStore_connectionOptions_shouldConfigureTimeouts() throws Exception {
+    final IMAPStore mockedStore = mock(IMAPStore.class);
+    doReturn(mockedStore).when(session).getStore(eq("imap"));
+    final HostDefinition hostDefinition = new HostDefinition();
+    hostDefinition.setHost("mail.host");
+    hostDefinition.setPort(143);
+    hostDefinition.setUser("the-user");
+    hostDefinition.setPassword("the-pw");
+    hostDefinition.setConnectTimeout(1000);
+    hostDefinition.setReadTimeout(2000);
+    final AtomicReference<Properties> configuredProperties = new AtomicReference<>();
+
+    try (MockedStatic<Session> mockedSession = mockStatic(Session.class)) {
+      mockedSession.when(() -> Session.getInstance(any(Properties.class), eq((Authenticator) null)))
+          .thenAnswer(invocation -> {
+            configuredProperties.set((Properties) invocation.getArgument(0));
+            return session;
+          });
+      openStore(hostDefinition, 1);
+    }
+
+    assertThat(configuredProperties.get().getProperty("mail.imap.connectiontimeout"), equalTo("1000"));
+    assertThat(configuredProperties.get().getProperty("mail.imap.timeout"), equalTo("2000"));
+    assertThat(configuredProperties.get().getProperty("mail.imap.writetimeout"), equalTo("2000"));
+  }
+
+  @Test
+  void openStore_transientFailure_shouldRetryConnection() throws Exception {
+    final IMAPStore failedStore = mock(IMAPStore.class);
+    final IMAPStore connectedStore = mock(IMAPStore.class);
+    doReturn(failedStore).doReturn(connectedStore).when(session).getStore(eq("imap"));
+    doThrow(new MessagingException("Temporary failure")).when(failedStore)
+        .connect(eq("mail.host"), eq(143), eq("the-user"), eq("the-pw"));
+    final HostDefinition hostDefinition = new HostDefinition();
+    hostDefinition.setHost("mail.host");
+    hostDefinition.setPort(143);
+    hostDefinition.setUser("the-user");
+    hostDefinition.setPassword("the-pw");
+    hostDefinition.setRetries(1);
+
+    try (MockedStatic<Session> mockedSession = mockStatic(Session.class)) {
+      mockedSession.when(() -> Session.getInstance(any(Properties.class), eq((Authenticator) null)))
+          .thenReturn(session);
+      assertThat(openStore(hostDefinition, 1), equalTo(connectedStore));
+    }
+
+    verify(failedStore).connect("mail.host", 143, "the-user", "the-pw");
+    verify(connectedStore).connect("mail.host", 143, "the-user", "the-pw");
   }
 
   @Test

@@ -33,6 +33,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 /**
  * Created by Marc Nuri <marc@marcnuri.com> on 2019-08-19.
@@ -92,5 +94,17 @@ class StoreDeleterTest {
     assertThat(storeDeleter.getFoldersSkippedCount(), equalTo(0));
     assertThat(storeDeleter.getMessagesDeletedCount(), equalTo(0L));
     assertThat(storeDeleter.getMessagesSkippedCount(), equalTo(0L));
+  }
+
+  @Test
+  void delete_sourceFolderUnsafeForDeletion_shouldNotProcessMessages() throws Exception {
+    sourceIndex.addFolder("MissingFolder");
+    sourceIndex.markFolderUnsafeForDeletion("MissingFolder");
+    doReturn(1).when(imapFolder).getMessageCount();
+    final StoreDeleter storeDeleter = new StoreDeleter(sourceIndex, targetIndex, imapStore, 1);
+
+    storeDeleter.delete();
+
+    verify(imapFolder, never()).getMessages(1, 1);
   }
 }

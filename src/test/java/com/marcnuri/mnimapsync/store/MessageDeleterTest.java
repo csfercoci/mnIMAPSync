@@ -95,7 +95,7 @@ class MessageDeleterTest {
         storeDeleter, "Target Folder",
         0, 100, true, sourceFolderMessages);
     final IMAPMessage message = Mockito.mock(IMAPMessage.class);
-    doReturn(new String[]{"1337"}).when(message).getHeader("Message-Id");
+    doReturn(new String[]{"1337"}).when(message).getHeader("Message-ID");
     sourceFolderMessages.add(new MessageId(message));
     doReturn(new Message[]{message}).when(imapFolder).getMessages(eq(0), eq(100));
     // When
@@ -115,10 +115,10 @@ class MessageDeleterTest {
         storeDeleter, "Target Folder",
         0, 100, true, sourceFolderMessages);
     final IMAPMessage existingSourceMessage = Mockito.mock(IMAPMessage.class);
-    doReturn(new String[]{"1337"}).when(existingSourceMessage).getHeader("Message-Id");
+    doReturn(new String[]{"1337"}).when(existingSourceMessage).getHeader("Message-ID");
     sourceFolderMessages.add(new MessageId(existingSourceMessage));
     final IMAPMessage deletableMessage = Mockito.mock(IMAPMessage.class);
-    doReturn(new String[]{"313373"}).when(deletableMessage).getHeader("Message-Id");
+    doReturn(new String[]{"313373"}).when(deletableMessage).getHeader("Message-ID");
     doReturn(new Message[]{existingSourceMessage, deletableMessage}).when(imapFolder).getMessages(eq(0), eq(100));
     // When
     messageDeleter.run();

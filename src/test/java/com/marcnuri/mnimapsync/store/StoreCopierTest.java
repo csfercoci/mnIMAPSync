@@ -24,6 +24,7 @@ import com.marcnuri.mnimapsync.index.Index;
 import com.sun.mail.imap.IMAPFolder;
 import com.sun.mail.imap.IMAPStore;
 import jakarta.mail.Folder;
+import jakarta.mail.Message;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.verify;
 
 /**
  * Created by Marc Nuri <marc@marcnuri.com> on 2019-08-18.
@@ -99,5 +101,19 @@ class StoreCopierTest {
     assertThat(storeCopier.getFoldersCopiedCount(), equalTo(0));
     assertThat(storeCopier.getFoldersSkippedCount(), equalTo(1));
     assertThat(sourceIndex.containsFolder("INBOX"), equalTo(true));
+  }
+
+  @Test
+  void copy_with201Messages_shouldUseNonOverlappingBatches() throws Exception {
+    doReturn(true).when(imapFolder).create(eq(Folder.HOLDS_MESSAGES | Folder.HOLDS_FOLDERS));
+    doReturn(201).when(imapFolder).getMessageCount();
+    doReturn(new Message[0]).when(imapFolder).getMessages(eq(1), eq(200));
+    doReturn(new Message[0]).when(imapFolder).getMessages(eq(201), eq(201));
+    final StoreCopier storeCopier = new StoreCopier(imapStore, sourceIndex, imapStore, targetIndex, 1);
+
+    storeCopier.copy();
+
+    verify(imapFolder).getMessages(1, 200);
+    verify(imapFolder).getMessages(201, 201);
   }
 }

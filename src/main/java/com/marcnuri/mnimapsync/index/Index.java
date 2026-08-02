@@ -37,6 +37,8 @@ public class Index {
     private final AtomicReference<String> inbox;
     private final Set<String> folders;
     private final Map<String, Set<MessageId>> folderMessages;
+    private final Map<String, Map<MessageId, MessageState>> messageStates;
+    private final Set<String> unsafeForDeletionFolders;
     private final AtomicLong indexedMessageCount;
     private final AtomicLong skippedMessageCount;
     //If no empty, the other processes shouldn't continue
@@ -47,6 +49,8 @@ public class Index {
         this.inbox = new AtomicReference<>();
         this.folders = ConcurrentHashMap.newKeySet();
         this.folderMessages = new ConcurrentHashMap<>();
+        this.messageStates = new ConcurrentHashMap<>();
+        this.unsafeForDeletionFolders = ConcurrentHashMap.newKeySet();
         this.indexedMessageCount = new AtomicLong();
         this.skippedMessageCount = new AtomicLong();
         this.crawlExceptions = ConcurrentHashMap.newKeySet();
@@ -101,6 +105,24 @@ public class Index {
 
     public Set<MessageId> getFolderMessages(String folder) {
         return folderMessages.computeIfAbsent(folder, k -> ConcurrentHashMap.newKeySet());
+    }
+
+    public final void putMessageState(String folder, MessageId messageId, MessageState messageState) {
+        messageStates.computeIfAbsent(folder, k -> new ConcurrentHashMap<>())
+            .put(messageId, messageState);
+    }
+
+    public final MessageState getMessageState(String folder, MessageId messageId) {
+        final Map<MessageId, MessageState> states = messageStates.get(folder);
+        return states == null ? null : states.get(messageId);
+    }
+
+    public final void markFolderUnsafeForDeletion(String folder) {
+        unsafeForDeletionFolders.add(folder);
+    }
+
+    public final boolean isFolderUnsafeForDeletion(String folder) {
+        return unsafeForDeletionFolders.contains(folder);
     }
 
     final void addCrawlException(MessagingException exception) {

@@ -21,7 +21,14 @@
 package com.marcnuri.mnimapsync.cli;
 
 import com.marcnuri.mnimapsync.SyncOptions;
-import org.apache.commons.cli.*;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.MissingArgumentException;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.UnrecognizedOptionException;
 
 public class ArgumentParser {
   public static SyncOptions parseCliArguments(String[] arguments) {
@@ -33,27 +40,41 @@ public class ArgumentParser {
       CommandLine cmd = parser.parse(options, arguments);
 
       result.getSourceHost().setHost(cmd.getOptionValue("host1"));
-      result.getSourceHost().setPort(parseIntValue("port1", cmd.getOptionValue("port1")));
+      result.getSourceHost().setPort(parsePortValue("port1", cmd.getOptionValue("port1")));
       result.getSourceHost().setUser(cmd.getOptionValue("user1"));
       result.getSourceHost().setPassword(cmd.getOptionValue("password1"));
       result.getSourceHost().setSsl(cmd.hasOption("ssl1"));
 
       result.getTargetHost().setHost(cmd.getOptionValue("host2"));
-      result.getTargetHost().setPort(parseIntValue("port2", cmd.getOptionValue("port2")));
+      result.getTargetHost().setPort(parsePortValue("port2", cmd.getOptionValue("port2")));
       result.getTargetHost().setUser(cmd.getOptionValue("user2"));
       result.getTargetHost().setPassword(cmd.getOptionValue("password2"));
       result.getTargetHost().setSsl(cmd.hasOption("ssl2"));
 
+      if (cmd.hasOption("retries")) {
+        final int retries = parseNonNegativeIntValue("retries", cmd.getOptionValue("retries"));
+        result.getSourceHost().setRetries(retries);
+        result.getTargetHost().setRetries(retries);
+      }
+      if (cmd.hasOption("connect-timeout")) {
+        final int timeout = parsePositiveIntValue("connect-timeout",
+            cmd.getOptionValue("connect-timeout"));
+        result.getSourceHost().setConnectTimeout(timeout);
+        result.getTargetHost().setConnectTimeout(timeout);
+      }
+      if (cmd.hasOption("read-timeout")) {
+        final int timeout = parsePositiveIntValue("read-timeout", cmd.getOptionValue("read-timeout"));
+        result.getSourceHost().setReadTimeout(timeout);
+        result.getTargetHost().setReadTimeout(timeout);
+      }
+
       result.setDelete(cmd.hasOption("delete"));
-      result.setThreads(parseIntValue("threads", cmd.getOptionValue("threads")));
+      if (cmd.hasOption("threads")) {
+        result.setThreads(parsePositiveIntValue("threads", cmd.getOptionValue("threads")));
+      }
 
     } catch (ParseException e) {
-      System.err.println("Parsing failed. Reason: " + e.getMessage());
-      System.out.println("Parsing failed. Reason: " + e.getMessage());
-
-      printHelp(options);
-
-      System.exit(1);
+      throw toIllegalArgumentException(e);
     }
 
     return result;
@@ -76,27 +97,55 @@ public class ArgumentParser {
 
     options.addOption(Option.builder().longOpt("delete").desc("Enable delete operation").build());
     options.addOption(Option.builder().longOpt("threads").hasArg().desc("Number of threads").build());
+    options.addOption(Option.builder().longOpt("retries").hasArg().desc("Connection retries").build());
+    options.addOption(Option.builder().longOpt("connect-timeout").hasArg()
+        .desc("Connection timeout in milliseconds").build());
+    options.addOption(Option.builder().longOpt("read-timeout").hasArg()
+        .desc("Read and write timeout in milliseconds").build());
 
     return options;
   }
 
-  private static void printHelp(Options options) {
-    HelpFormatter formatter = new HelpFormatter();
-    formatter.printHelp("java -jar your-application.jar", options);
-  }
-  private static int parseIntValue(String key, String intValue) {
-    try {
-      return Integer.parseInt(intValue);
-    } catch (NumberFormatException e) {
-      throw new IllegalArgumentException(String.format("%s requires a valid integer as a value", key));
+  private static IllegalArgumentException toIllegalArgumentException(ParseException exception) {
+    if (exception instanceof MissingArgumentException) {
+      final MissingArgumentException missingArgumentException = (MissingArgumentException) exception;
+      return new IllegalArgumentException("--" + missingArgumentException.getOption().getLongOpt()
+          + " requires a value", exception);
     }
+    if (exception instanceof UnrecognizedOptionException) {
+      final UnrecognizedOptionException unrecognizedOptionException =
+          (UnrecognizedOptionException) exception;
+      return new IllegalArgumentException("Unrecognized argument: "
+          + unrecognizedOptionException.getOption(), exception);
+    }
+    return new IllegalArgumentException(exception.getMessage(), exception);
   }
 
+  private static int parsePortValue(String key, String intValue) {
+    final int port = parsePositiveIntValue(key, intValue);
+    if (port > 65535) {
+      throw new IllegalArgumentException("--" + key + " must be between 1 and 65535");
+    }
+    return port;
+  }
 
+  private static int parsePositiveIntValue(String key, String intValue) {
+    final int value = parseNonNegativeIntValue(key, intValue);
+    if (value < 1) {
+      throw new IllegalArgumentException("--" + key + " must be greater than zero");
+    }
+    return value;
+  }
 
-@FunctionalInterface
-  private interface ParserAction {
-
-    void action(String key);
+  private static int parseNonNegativeIntValue(String key, String intValue) {
+    try {
+      final int value = Integer.parseInt(intValue);
+      if (value < 0) {
+        throw new IllegalArgumentException("--" + key + " must not be negative");
+      }
+      return value;
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("--" + key + " value should be an integer", e);
+    }
   }
 }

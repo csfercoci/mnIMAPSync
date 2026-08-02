@@ -51,9 +51,9 @@ public final class MessageDeleter implements Runnable {
     public void run() {
         long deleted = 0L;
         long skipped = 0L;
+        Folder targetFolder = null;
         try {
-            final Folder targetFolder = storeDeleter.getTargetStore().getFolder(targetFolderName);
-            //Opens a new connection per Thread
+            targetFolder = storeDeleter.getTargetStore().getFolder(targetFolderName);
             targetFolder.open(Folder.READ_WRITE);
             final Message[] targetMessages = targetFolder.getMessages(start, end);
             targetFolder.fetch(targetMessages, MessageId.addHeaders(new FetchProfile()));
@@ -82,6 +82,14 @@ public final class MessageDeleter implements Runnable {
             }
         } catch (MessagingException messagingException) {
             Logger.getLogger(Index.class.getName()).log(Level.SEVERE, null, messagingException);
+        } finally {
+            if (targetFolder != null && targetFolder.isOpen()) {
+                try {
+                    targetFolder.close(false);
+                } catch (MessagingException messagingException) {
+                    Logger.getLogger(Index.class.getName()).log(Level.SEVERE, null, messagingException);
+                }
+            }
         }
         storeDeleter.updatedMessagesDeletedCount(deleted);
         storeDeleter.updateMessagesSkippedCount(skipped);

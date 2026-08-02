@@ -38,13 +38,13 @@ class ArgumentParserTest {
   void parseCliArguments_invalidArgument_shouldThrowException() {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
       // Given
-      final String[] arguments = new String[]{"I'm an Invalid argument"};
+      final String[] arguments = appendOption(validArguments(), "--invalidArgument", "value");
       // When
       parseCliArguments(arguments);
       // Then
       fail();
     });
-    assertThat(exception.getMessage(), is("Unrecognized argument: I'm an Invalid argument"));
+    assertThat(exception.getMessage(), is("Unrecognized argument: --invalidArgument"));
   }
 
   @Test
@@ -70,14 +70,14 @@ class ArgumentParserTest {
       // Then
       fail();
     });
-    assertThat(exception.getMessage(), is("--port1 requires a valid integer as a value"));
+    assertThat(exception.getMessage(), is("--port1 requires a value"));
   }
 
   @Test
   void parseCliArguments_invalidPort_shouldThrowException() {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
       // Given
-      final String[] arguments = new String[]{"--port1", "notANumber"};
+      final String[] arguments = withOption(validArguments(), "--port1", "notANumber");
       // When
       parseCliArguments(arguments);
       // Then
@@ -98,7 +98,7 @@ class ArgumentParserTest {
         "--ssl1",
         "--user2", "target-user",
         "--ssl2",
-        "--port2", "313373",
+        "--port2", "31337",
         "--password2", "s3cr3t",
         "--threads", "9",
         "--delete"
@@ -112,11 +112,78 @@ class ArgumentParserTest {
     assertThat(result.getSourceHost().getPassword(), is("S3cret"));
     assertThat(result.getSourceHost().isSsl(), is(true));
     assertThat(result.getTargetHost().getHost(), is("mail.target.com"));
-    assertThat(result.getTargetHost().getPort(), is(313373));
+    assertThat(result.getTargetHost().getPort(), is(31337));
     assertThat(result.getTargetHost().getUser(), is("target-user"));
     assertThat(result.getTargetHost().getPassword(), is("s3cr3t"));
     assertThat(result.getTargetHost().isSsl(), is(true));
     assertThat(result.getThreads(), is(9));
     assertThat(result.getDelete(), is(true));
+  }
+
+  @Test
+  void parseCliArguments_withoutThreads_shouldUseDefault() {
+    final SyncOptions result = parseCliArguments(validArguments());
+
+    assertThat(result.getThreads(), is(5));
+  }
+
+  @Test
+  void parseCliArguments_zeroThreads_shouldThrowException() {
+    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> parseCliArguments(appendOption(validArguments(), "--threads", "0")));
+
+    assertThat(exception.getMessage(), is("--threads must be greater than zero"));
+  }
+
+  @Test
+  void parseCliArguments_portAboveRange_shouldThrowException() {
+    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> parseCliArguments(withOption(validArguments(), "--port1", "65536")));
+
+    assertThat(exception.getMessage(), is("--port1 must be between 1 and 65535"));
+  }
+
+  @Test
+  void parseCliArguments_connectionOptions_shouldApplyToBothHosts() {
+    final SyncOptions result = parseCliArguments(appendOption(
+        appendOption(appendOption(validArguments(), "--retries", "2"), "--connect-timeout", "1000"),
+        "--read-timeout", "2000"));
+
+    assertThat(result.getSourceHost().getRetries(), is(2));
+    assertThat(result.getTargetHost().getRetries(), is(2));
+    assertThat(result.getSourceHost().getConnectTimeout(), is(1000));
+    assertThat(result.getTargetHost().getReadTimeout(), is(2000));
+  }
+
+  private static String[] validArguments() {
+    return new String[]{
+        "--host1", "mail.source.com",
+        "--port1", "993",
+        "--user1", "source-user",
+        "--password1", "source-password",
+        "--host2", "mail.target.com",
+        "--port2", "993",
+        "--user2", "target-user",
+        "--password2", "target-password"
+    };
+  }
+
+  private static String[] withOption(String[] arguments, String key, String value) {
+    final String[] result = arguments.clone();
+    for (int index = 0; index < result.length - 1; index += 2) {
+      if (key.equals(result[index])) {
+        result[index + 1] = value;
+        return result;
+      }
+    }
+    throw new IllegalArgumentException("Missing option in test arguments: " + key);
+  }
+
+  private static String[] appendOption(String[] arguments, String key, String value) {
+    final String[] result = new String[arguments.length + 2];
+    System.arraycopy(arguments, 0, result, 0, arguments.length);
+    result[arguments.length] = key;
+    result[arguments.length + 1] = value;
+    return result;
   }
 }

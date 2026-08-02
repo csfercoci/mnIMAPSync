@@ -22,13 +22,12 @@ package com.marcnuri.mnimapsync.cli;
 
 import com.marcnuri.mnimapsync.MNIMAPSync;
 import com.marcnuri.mnimapsync.index.Index;
-import mockit.Mock;
-import mockit.MockUp;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.mockito.MockedStatic;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -80,16 +79,13 @@ class SyncMonitorTest {
   @Order(1)
   void run_throwsException_shouldLogException() throws Exception {
     // Given
-    new MockUp<CliMonitorReport>() {
-      @Mock
-      @SuppressWarnings("unused")
-      String getMonitorReportAsText(MNIMAPSync syncInstance) throws IOException {
-        throw new IOException("Everything is fine");
-      }
-    };
-    final SyncMonitor syncMonitor = new SyncMonitor(null);
-    // When
-    syncMonitor.run();
+    try (MockedStatic<CliMonitorReport> mockedReport = mockStatic(CliMonitorReport.class)) {
+      mockedReport.when(() -> CliMonitorReport.getMonitorReportAsText(null))
+          .thenThrow(new IOException("Everything is fine"));
+      final SyncMonitor syncMonitor = new SyncMonitor(null);
+      // When
+      syncMonitor.run();
+    }
     // Then
     Arrays.stream(Logger.getLogger(SyncMonitor.class.getName()).getHandlers()).forEach(
       Handler::flush);

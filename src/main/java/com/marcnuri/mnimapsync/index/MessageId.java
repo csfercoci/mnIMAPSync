@@ -78,7 +78,7 @@ public class MessageId implements Serializable {
             //Irregular mails have more than one header for From or To fields
             //This can cause that different servers respond differently
             this.from = parseAddress(messageHelper.getFrom());
-            this.to = parseAddress(message.getRecipients(Message.RecipientType.TO));
+            this.to = parseAddress(messageHelper.getTo());
             this.date = message.getReceivedDate();
             //Regular subject may have some problems when using non ascii characters
             //Loss of precision, but I don't think it's necessary

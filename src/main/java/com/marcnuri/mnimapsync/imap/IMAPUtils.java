@@ -24,7 +24,7 @@ import com.marcnuri.mnimapsync.HostDefinition;
 import com.marcnuri.mnimapsync.index.Index;
 import com.sun.mail.imap.IMAPSSLStore;
 import com.sun.mail.imap.IMAPStore;
-import com.sun.mail.util.MailSSLSocketFactory;
+import jakarta.mail.AuthenticationFailedException;
 import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 
@@ -40,16 +40,6 @@ public class IMAPUtils {
 
   public static final String INBOX_MAILBOX = "INBOX";
 
-  private static MailSSLSocketFactory mailSSLSocketFactory;
-
-  private static MailSSLSocketFactory getSSLSocketFactory() throws GeneralSecurityException {
-    if (mailSSLSocketFactory == null) {
-      mailSSLSocketFactory = new MailSSLSocketFactory();
-      mailSSLSocketFactory.setTrustAllHosts(true);
-    }
-    return mailSSLSocketFactory;
-  }
-
   private IMAPUtils() {
   }
 
@@ -64,6 +54,7 @@ public class IMAPUtils {
       throws MessagingException, GeneralSecurityException {
     final Properties properties = new Properties();
     properties.put("mail.debug", "false");
+    final String protocol = hostDefinition.isSsl() ? "imaps" : "imap";
     properties.put("mail.imap.starttls.enable", true);
     properties.put("mail.mime.address.strict", false);
     properties.put("mail.mime.allowutf8", true);
@@ -71,31 +62,59 @@ public class IMAPUtils {
     properties.put("mail.mime.decodeparameters",true);
     properties.put("mail.mime.encodeparameters",true);
     properties.put("mail.mime.contentdisposition.strict", "false"); // default true
-    properties.put("mail.imaps.ssl.checkserveridentity", "false");
-    properties.put("mail.imaps.ssl.trust", "*");
-
     properties.put("mail.mime.charset", "UTF-8"); // Set character encoding
-
-
-
-    properties.setProperty("mail.imap.connectionpoolsize", String.valueOf(threads));
+    properties.setProperty("mail." + protocol + ".connectionpoolsize", String.valueOf(threads));
+    properties.setProperty("mail." + protocol + ".connectiontimeout",
+        String.valueOf(hostDefinition.getConnectTimeout()));
+    properties.setProperty("mail." + protocol + ".timeout", String.valueOf(hostDefinition.getReadTimeout()));
+    properties.setProperty("mail." + protocol + ".writetimeout",
+        String.valueOf(hostDefinition.getReadTimeout()));
     if (hostDefinition.isSsl()) {
-      properties.put("mail.imap.ssl.enable", hostDefinition.isSsl());
-      properties.setProperty("mail.imaps.connectionpoolsize", String.valueOf(threads));
-      properties.put("mail.imaps.socketFactory.port", hostDefinition.getPort());
-      properties.put("mail.imap.ssl.socketFactory", getSSLSocketFactory());
-      properties.put("mail.imap.ssl.socketFactory.fallback", false);
+      properties.put("mail.imaps.ssl.enable", true);
+      properties.put("mail.imaps.ssl.checkserveridentity", true);
     }
     final Session session = Session.getInstance(properties, null);
-    final IMAPStore ret;
-    if (hostDefinition.isSsl()) {
-      ret = (IMAPSSLStore) session.getStore("imaps");
-    } else {
-      ret = (IMAPStore) session.getStore("imap");
+    MessagingException lastFailure = null;
+    for (int attempt = 0; attempt <= hostDefinition.getRetries(); attempt++) {
+      IMAPStore store = null;
+      try {
+        store = hostDefinition.isSsl()
+            ? (IMAPSSLStore) session.getStore(protocol)
+            : (IMAPStore) session.getStore(protocol);
+        store.connect(hostDefinition.getHost(), hostDefinition.getPort(), hostDefinition.getUser(),
+            hostDefinition.getPassword());
+        return store;
+      } catch (AuthenticationFailedException exception) {
+        closeStore(store);
+        throw exception;
+      } catch (MessagingException exception) {
+        closeStore(store);
+        lastFailure = exception;
+        if (attempt < hostDefinition.getRetries()) {
+          waitBeforeRetry(attempt);
+        }
+      }
     }
-    ret.connect(hostDefinition.getHost(), hostDefinition.getPort(), hostDefinition.getUser(),
-        hostDefinition.getPassword());
-    return ret;
+    throw lastFailure;
+  }
+
+  private static void closeStore(IMAPStore store) {
+    if (store != null && store.isConnected()) {
+      try {
+        store.close();
+      } catch (MessagingException ignored) {
+        // Preserve the connection failure that caused this cleanup.
+      }
+    }
+  }
+
+  private static void waitBeforeRetry(int attempt) throws MessagingException {
+    try {
+      Thread.sleep(1000L * (attempt + 1));
+    } catch (InterruptedException exception) {
+      Thread.currentThread().interrupt();
+      throw new MessagingException("Interrupted while waiting to reconnect", exception);
+    }
   }
 
   private static Optional<String> translateInbox(String folderName, String inboxName) {
@@ -106,7 +125,7 @@ public class IMAPUtils {
   }
 
   private static String translateFolder(String folderName, Index sourceIndex, Index targetIndex) {
-    return folderName.replace(targetIndex.getFolderSeparator(),sourceIndex.getFolderSeparator());
+    return folderName.replace(sourceIndex.getFolderSeparator(), targetIndex.getFolderSeparator());
   }
 
   public static String sourceFolderNameToTarget(String sourceFolderFullName,

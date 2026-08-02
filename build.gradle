@@ -5,7 +5,7 @@ buildscript {
 }
 
 plugins {
-    id 'org.sonarqube' version '2.7'
+    id 'org.sonarqube' version '3.4.0.2513'
 }
 
 apply plugin: 'idea'
@@ -18,59 +18,56 @@ repositories {
 }
 
 dependencies {
-    dependencies {
-        // new Jakarta libraries
-        implementation 'com.sun.mail:jakarta.mail:2.0.1'
-        implementation 'com.sun.mail:imap:2.0.1'
+    implementation 'com.sun.mail:jakarta.mail:2.0.1'
+    implementation 'com.sun.mail:imap:2.0.1'
 
-        implementation 'commons-cli:commons-cli:1.4'
-        implementation 'org.apache.commons:commons-lang3:3.14.0'
+    implementation 'commons-cli:commons-cli:1.4'
+    implementation 'org.apache.commons:commons-lang3:3.14.0'
 
-        implementation 'com.h2database:h2:1.4.200'
+    implementation 'com.h2database:h2:1.4.200'
 
-
-
-        // Test dependencies
-        testCompile 'org.junit.jupiter:junit-jupiter:5.8.1'
-        testCompile 'org.mockito:mockito-core:3.12.4'
-        testCompile 'org.hamcrest:hamcrest:2.2'
-        testCompile 'org.jmockit:jmockit:1.49'
-    }
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+    testImplementation 'org.mockito:mockito-core:5.20.0'
+    testImplementation 'org.hamcrest:hamcrest:2.2'
 }
 
 group = 'com.marcnuri'
 version = '0.0.1-SNAPSHOT'
-sourceCompatibility = 1.8
-sourceCompatibility = 1.8
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
 
-mainClassName = 'com.marcnuri.mnimapsync.MNIMAPSync'
+application {
+    mainClass = 'com.marcnuri.mnimapsync.MNIMAPSync'
+}
 
 test {
     testLogging {
         exceptionFormat = 'full'
     }
-    jvmArgs "-javaagent:${classpath.find { it.name.contains("jmockit") }.absolutePath}"
     useJUnitPlatform()
     finalizedBy jacocoTestReport
 }
 
 jacocoTestReport {
     reports {
-        xml.enabled = true
-        html.enabled = true
+        xml.required = true
+        html.required = true
     }
 }
 
 task fatJar(type: Jar, group: BasePlugin.BUILD_GROUP) {
     manifest {
         attributes (
-            'Main-Class': mainClassName,
-            'Class-Path': configurations.runtime.files.collect { "$it.name" }.join(' ')
+            'Main-Class': application.mainClass.get(),
+            'Class-Path': configurations.runtimeClasspath.files.collect { "$it.name" }.join(' ')
         )
     }
     archiveBaseName = project.name
     archiveVersion = ''
     archiveClassifier = 'all'
-    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
 }

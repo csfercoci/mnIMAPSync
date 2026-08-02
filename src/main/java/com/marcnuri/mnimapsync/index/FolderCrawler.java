@@ -42,8 +42,9 @@ public final class FolderCrawler implements Runnable {
     public void run() {
         long indexedMessages = 0L;
         long skippedMessages = 0L;
+        Folder folder = null;
         try {
-            final Folder folder = store.getFolder(folderName);
+            folder = store.getFolder(folderName);
             folder.open(Folder.READ_ONLY);
             final Message[] messages = folder.getMessages(start, end);
             folder.fetch(messages, MessageId.addHeaders(new FetchProfile()));
@@ -54,6 +55,10 @@ public final class FolderCrawler implements Runnable {
                 try {
                     final MessageId messageId = new MessageId(message);
                     if (index.getFolderMessages(folderName).add(messageId)) {
+                        if (folder instanceof UIDFolder) {
+                            final long uid = ((UIDFolder) folder).getUID(message);
+                            index.putMessageState(folderName, messageId, MessageState.from(message, uid));
+                        }
                         indexedMessages++;
                       /*  // Insert message into database
                         try (PreparedStatement statement = connection.prepareStatement(
@@ -76,9 +81,16 @@ public final class FolderCrawler implements Runnable {
                     skippedMessages++;
                 }
             }
-            folder.close(false);
         } catch (MessagingException  messagingException) {
             index.addCrawlException(messagingException);
+        } finally {
+            if (folder != null && folder.isOpen()) {
+                try {
+                    folder.close(false);
+                } catch (MessagingException messagingException) {
+                    index.addCrawlException(messagingException);
+                }
+            }
         }
         index.updatedIndexedMessageCount(indexedMessages);
         index.updatedSkippedMessageCount(skippedMessages);

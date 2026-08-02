@@ -76,14 +76,12 @@ public class StoreCrawler {
         if (folder.getMode() != Folder.READ_ONLY) {
           folder.expunge();
         }
-         int messageCount = folder.getMessageCount();
-         folder.close(false);
-        int pos = 1;
-        while (pos + MNIMAPSync.BATCH_SIZE <= messageCount) {
-          service.execute(new FolderCrawler(store, folderName, pos,pos + MNIMAPSync.BATCH_SIZE, index, connection));
-          pos = pos + MNIMAPSync.BATCH_SIZE;
+        int messageCount = folder.getMessageCount();
+        folder.close(false);
+        for (int start = 1; start <= messageCount; start += MNIMAPSync.BATCH_SIZE) {
+          final int end = Math.min(start + MNIMAPSync.BATCH_SIZE - 1, messageCount);
+          service.execute(new FolderCrawler(store, folderName, start, end, index, connection));
         }
-        service.execute(new FolderCrawler(store, folderName, pos, messageCount, index, connection));
       }
       // Folder recursion. Get all children
       if ((folder.getType() & Folder.HOLDS_FOLDERS) == Folder.HOLDS_FOLDERS) {
@@ -94,4 +92,3 @@ public class StoreCrawler {
     }
   }
 }
-

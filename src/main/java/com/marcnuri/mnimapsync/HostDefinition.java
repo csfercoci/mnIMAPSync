@@ -33,6 +33,9 @@ public class HostDefinition implements Serializable {
     private String user;
     private String password;
     private boolean ssl;
+    private int retries = 3;
+    private int connectTimeout = 30000;
+    private int readTimeout = 60000;
 
     public String getHost() {
         return host;
@@ -74,6 +77,39 @@ public class HostDefinition implements Serializable {
         this.ssl = ssl;
     }
 
+    public int getRetries() {
+        return retries;
+    }
+
+    public void setRetries(int retries) {
+        if (retries < 0) {
+            throw new IllegalArgumentException("retries must not be negative");
+        }
+        this.retries = retries;
+    }
+
+    public int getConnectTimeout() {
+        return connectTimeout;
+    }
+
+    public void setConnectTimeout(int connectTimeout) {
+        if (connectTimeout < 1) {
+            throw new IllegalArgumentException("connectTimeout must be greater than zero");
+        }
+        this.connectTimeout = connectTimeout;
+    }
+
+    public int getReadTimeout() {
+        return readTimeout;
+    }
+
+    public void setReadTimeout(int readTimeout) {
+        if (readTimeout < 1) {
+            throw new IllegalArgumentException("readTimeout must be greater than zero");
+        }
+        this.readTimeout = readTimeout;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -85,6 +121,9 @@ public class HostDefinition implements Serializable {
         HostDefinition that = (HostDefinition) o;
         return port == that.port &&
             ssl == that.ssl &&
+            retries == that.retries &&
+            connectTimeout == that.connectTimeout &&
+            readTimeout == that.readTimeout &&
             Objects.equals(host, that.host) &&
             Objects.equals(user, that.user) &&
             Objects.equals(password, that.password);
@@ -92,7 +131,7 @@ public class HostDefinition implements Serializable {
 
     @Override
     public int hashCode() {
-        return Objects.hash(host, port, user, password, ssl);
+        return Objects.hash(host, port, user, password, ssl, retries, connectTimeout, readTimeout);
     }
 
 }

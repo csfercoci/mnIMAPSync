@@ -18,11 +18,14 @@ package com.marcnuri.mnimapsync.store;
 
 import com.marcnuri.mnimapsync.index.Index;
 import com.marcnuri.mnimapsync.index.MessageId;
+import com.marcnuri.mnimapsync.index.MessageState;
 import com.sun.mail.imap.IMAPFolder;
 import com.sun.mail.imap.IMAPMessage;
 import jakarta.mail.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
@@ -51,21 +54,14 @@ public final class MessageCopier implements Runnable {
         this.targetFolderMessages = targetFolderMessages;
     }
 
-    private static String getMessageId(Message message) throws MessagingException {
-        String[] messageIdHeaders = message.getHeader("Message-ID");
-        if (messageIdHeaders != null && messageIdHeaders.length > 0) {
-            return messageIdHeaders[0]; // Return the first Message-ID header found
-        } else {
-            return null; // Message-ID header not found
-        }
-    }
     public void run() {
         final int updateCount = 20;
         long copied = 0L, skipped = 0L;
+        boolean expungeTarget = false;
+        Folder sourceFolder = null;
+        Folder targetFolder = null;
         try {
-            final Folder sourceFolder = storeCopier.getSourceStore().getFolder(sourceFolderName);
-            //Opens a new connection per Thread
-            //Manage Servers with public/read only folders.
+            sourceFolder = storeCopier.getSourceStore().getFolder(sourceFolderName);
             try {
                 sourceFolder.open(Folder.READ_WRITE);
             } catch (ReadOnlyFolderException ex) {
@@ -75,7 +71,8 @@ public final class MessageCopier implements Runnable {
             sourceFolder.fetch(sourceMessages, MessageId.addHeaders(new FetchProfile()));
 
             final List<Message> toCopy = new ArrayList<>();
-                    for (Message message : sourceMessages) {
+            final List<MessageUpdate> updates = new ArrayList<>();
+            for (Message message : sourceMessages) {
                 try {
                     final MessageId id = new MessageId(message);
                     //Index message for deletion (if necessary)
@@ -86,23 +83,41 @@ public final class MessageCopier implements Runnable {
                         ((IMAPMessage) message).setPeek(true);
                         toCopy.add(message);
                     } else {
-                        skipped++;
+                        ((IMAPMessage) message).setPeek(true);
+                        final MessageState targetState = storeCopier.getTargetIndex()
+                            .getMessageState(targetFolderName, id);
+                        if (targetState == null) {
+                            skipped++;
+                        } else {
+                            final boolean contentChanged = !targetState.hasSameContent(message);
+                            updates.add(new MessageUpdate(message, targetState, contentChanged));
+                            if (contentChanged) {
+                                continue;
+                            }
+                            skipped++;
+                        }
                     }
                 } catch (MessageId.MessageIdException ex) {
-                    //Usually messages that ran into this exception are spammy, so we skip them.
+                    //An unidentifiable source message must never make its target counterpart deletable.
+                    if (storeCopier.getSourceIndex() != null) {
+                        storeCopier.getSourceIndex().markFolderUnsafeForDeletion(sourceFolderName);
+                    }
                     skipped++;
                 }
             }
-            if (!toCopy.isEmpty()) {
+            if (!toCopy.isEmpty() || !updates.isEmpty()) {
                 final FetchProfile fullProfile = MessageId.addHeaders(new FetchProfile());
                 fullProfile.add(FetchProfile.Item.CONTENT_INFO);
                 fullProfile.add(FetchProfile.Item.FLAGS);
                 fullProfile.add(IMAPFolder.FetchProfileItem.HEADERS);
                 fullProfile.add(FetchProfile.Item.SIZE);
-                sourceFolder.fetch(toCopy.toArray(new Message[0]), fullProfile);
-                final Folder targetFolder = storeCopier.getTargetStore().getFolder(targetFolderName);
+                final List<Message> messagesToFetch = new ArrayList<>(toCopy);
+                for (MessageUpdate update : updates) {
+                    messagesToFetch.add(update.source);
+                }
+                sourceFolder.fetch(messagesToFetch.toArray(new Message[0]), fullProfile);
+                targetFolder = storeCopier.getTargetStore().getFolder(targetFolderName);
                 targetFolder.open(Folder.READ_WRITE);
-                System.out.println(String.format("Copy to this folder: %s start=%d, end=%d, total=%d", targetFolderName,start, end,toCopy.size()));
                 for (Message message : toCopy) {
                     targetFolder.appendMessages(new Message[]{message});
                     try {
@@ -118,19 +133,92 @@ public final class MessageCopier implements Runnable {
                                 log(Level.SEVERE, null, ex);
                     }
                 }
-                targetFolder.close(false);
+                for (MessageUpdate update : updates) {
+                    if (!update.contentChanged) {
+                        continue;
+                    }
+                    final Message targetMessage = getTargetMessage(targetFolder, update.targetState);
+                    targetFolder.appendMessages(new Message[]{update.source});
+                    targetMessage.setFlag(Flags.Flag.DELETED, true);
+                    expungeTarget = true;
+                    copied++;
+                }
+                for (MessageUpdate update : updates) {
+                    if (update.contentChanged) {
+                        continue;
+                    }
+                    synchronizeFlags(update.source, getTargetMessage(targetFolder, update.targetState),
+                        targetFolder);
+                }
             }
-            sourceFolder.close(false);
         } catch (MessagingException messagingException) {
             storeCopier.getCopyExceptions().add(messagingException);
             Logger.getLogger(Index.class.getName()).log(Level.SEVERE, null,
                     messagingException);
+        } finally {
+            closeFolder(targetFolder, expungeTarget);
+            closeFolder(sourceFolder, false);
         }
         storeCopier.updatedMessagesCopiedCount(copied);
         storeCopier.updateMessagesSkippedCount(skipped);
         if (storeCopier.getSourceIndex() != null) {
             //Quick way to update count (not precise)
             storeCopier.getSourceIndex().updatedIndexedMessageCount(copied + skipped);
+        }
+    }
+
+    private static Message getTargetMessage(Folder targetFolder, MessageState targetState)
+        throws MessagingException {
+
+        if (!(targetFolder instanceof IMAPFolder)) {
+            throw new MessagingException("Target folder does not support IMAP UIDs");
+        }
+        final Message targetMessage = ((IMAPFolder) targetFolder).getMessageByUID(targetState.getUid());
+        if (targetMessage == null) {
+            throw new MessagingException("Target message no longer exists");
+        }
+        return targetMessage;
+    }
+
+    private static void synchronizeFlags(Message sourceMessage, Message targetMessage, Folder targetFolder)
+        throws MessagingException {
+
+        final Flags permanentFlags = targetFolder.getPermanentFlags();
+        for (Flags.Flag flag : permanentFlags.getSystemFlags()) {
+            if (flag != Flags.Flag.DELETED && flag != Flags.Flag.RECENT && flag != Flags.Flag.USER) {
+                targetMessage.setFlag(flag, sourceMessage.isSet(flag));
+            }
+        }
+        final Set<String> userFlags = new HashSet<>(Arrays.asList(permanentFlags.getUserFlags()));
+        if (permanentFlags.contains(Flags.Flag.USER)) {
+            userFlags.addAll(Arrays.asList(sourceMessage.getFlags().getUserFlags()));
+            userFlags.addAll(Arrays.asList(targetMessage.getFlags().getUserFlags()));
+        }
+        for (String flag : userFlags) {
+            targetMessage.setFlags(new Flags(flag), sourceMessage.getFlags().contains(flag));
+        }
+    }
+
+    private void closeFolder(Folder folder, boolean expunge) {
+        if (folder != null && folder.isOpen()) {
+            try {
+                folder.close(expunge);
+            } catch (MessagingException messagingException) {
+                storeCopier.getCopyExceptions().add(messagingException);
+                Logger.getLogger(Index.class.getName()).log(Level.SEVERE, null, messagingException);
+            }
+        }
+    }
+
+    private static final class MessageUpdate {
+        private final Message source;
+        private final MessageState targetState;
+        private final boolean contentChanged;
+
+        private MessageUpdate(Message source, MessageState targetState, boolean contentChanged) {
+            this.source = source;
+            this.targetState = targetState;
+            this.contentChanged = contentChanged;
         }
     }
 }

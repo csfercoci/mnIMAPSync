@@ -78,6 +78,7 @@ public final class StoreCopier {
             //Copy messages
             copySourceMessages((IMAPFolder) sourceStore.getDefaultFolder());
         } catch (MessagingException ex) {
+            copyExceptions.add(ex);
             Logger.getLogger(StoreCopier.class.getName()).log(Level.SEVERE, null, ex);
         }
         service.shutdown();
@@ -144,17 +145,11 @@ public final class StoreCopier {
                 final int messageCount = sourceFolder.getMessageCount();
                 sourceFolder.close(false);
 
-                int pos = 1;
-                while (pos + MNIMAPSync.BATCH_SIZE <= messageCount) {
-                    //Copy messages
-                    service.execute(new MessageCopier(this, sourceFolderName, targetFolderName, pos,
-                            pos + MNIMAPSync.BATCH_SIZE, targetIndex.getFolderMessages(
-                                    targetFolderName)));
-                    pos = pos + MNIMAPSync.BATCH_SIZE;
+                for (int start = 1; start <= messageCount; start += MNIMAPSync.BATCH_SIZE) {
+                    final int end = Math.min(start + MNIMAPSync.BATCH_SIZE - 1, messageCount);
+                    service.execute(new MessageCopier(this, sourceFolderName, targetFolderName, start,
+                            end, targetIndex.getFolderMessages(targetFolderName)));
                 }
-                service.execute(new MessageCopier(this, sourceFolderName, targetFolderName, pos,
-                        messageCount,
-                        targetIndex.getFolderMessages(targetFolderName)));
             }
             //Folder recursion. Get all children
             if ((sourceFolder.getType() & Folder.HOLDS_FOLDERS) == Folder.HOLDS_FOLDERS) {
@@ -214,6 +209,10 @@ public final class StoreCopier {
 
     final IMAPStore getTargetStore() {
         return targetStore;
+    }
+
+    final Index getTargetIndex() {
+        return targetIndex;
     }
 
     public final synchronized List<MessagingException> getCopyExceptions() {

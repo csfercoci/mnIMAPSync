@@ -77,6 +77,9 @@ public class StoreDeleter {
         if (targetFolder != null) {
             final String targetFolderName = targetFolder.getFullName();
             final String sourceFolderName = targetToSourceFolderName(targetFolderName, sourceIndex, targetIndex);
+            if (sourceIndex.isFolderUnsafeForDeletion(sourceFolderName)) {
+                return;
+            }
             if ((targetFolder.getType() & Folder.HOLDS_MESSAGES) == Folder.HOLDS_MESSAGES) {
                 targetFolder.open(Folder.READ_WRITE);
                 if (targetFolder.getMode() != Folder.READ_ONLY) {
@@ -84,16 +87,12 @@ public class StoreDeleter {
                 }
                 final int messageCount = targetFolder.getMessageCount();
                 targetFolder.close(false);
-                int pos = 1;
-                while (pos + MNIMAPSync.BATCH_SIZE <= messageCount) {
-                    service.execute(
-                            new MessageDeleter(this, targetFolderName, pos,
-                                    pos + MNIMAPSync.BATCH_SIZE, false, sourceIndex.
-                                    getFolderMessages(sourceFolderName)));
-                    pos = pos + MNIMAPSync.BATCH_SIZE;
+                for (int start = 1; start <= messageCount; start += MNIMAPSync.BATCH_SIZE) {
+                    final int end = Math.min(start + MNIMAPSync.BATCH_SIZE - 1, messageCount);
+                    final boolean expunge = end == messageCount;
+                    service.execute(new MessageDeleter(this, targetFolderName, start, end, expunge,
+                        sourceIndex.getFolderMessages(sourceFolderName)));
                 }
-                service.execute(new MessageDeleter(this, targetFolderName,
-                        pos, messageCount, true, sourceIndex.getFolderMessages(sourceFolderName)));
             }
             //Folder recursion. Get all children
             if ((targetFolder.getType() & Folder.HOLDS_FOLDERS) == Folder.HOLDS_FOLDERS) {

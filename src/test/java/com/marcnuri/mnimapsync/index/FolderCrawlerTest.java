@@ -66,7 +66,7 @@ class FolderCrawlerTest {
   @Test
   void run_emptyFolder_shouldOnlyUpdateIndexes() throws Exception {
     // Given
-    Connection connection;
+    Connection connection = null;
     final FolderCrawler folderCrawler = new FolderCrawler(
         imapStore, "FolderName", 0, 100, index, connection);
     doReturn(new Message[0]).when(folder).getMessages(eq(0), eq(100));
@@ -81,7 +81,7 @@ class FolderCrawlerTest {
   @Test
   void run_notEmptyFolderAndStoreWithExceptions_shouldReturn() throws Exception {
     // Given
-    Connection connection;
+    Connection connection = null;
     final FolderCrawler folderCrawler = new FolderCrawler(
         imapStore, "FolderName", 0, 100, index, connection);
     final Message message = Mockito.mock(Message.class);
@@ -98,13 +98,13 @@ class FolderCrawlerTest {
   @Test
   void run_notEmptyFolderAndRepeatedMessages_shouldUpdateIndexes() throws Exception {
     // Given
-    Connection connection=null ;
+    Connection connection = null;
     final FolderCrawler folderCrawler = new FolderCrawler(
         imapStore, "FolderName", 0, 100, index, connection);
     final IMAPMessage message = Mockito.mock(IMAPMessage.class);
-    doReturn(new String[]{"1337"}).when(message).getHeader("Message-Id");
+    doReturn(new String[]{"1337"}).when(message).getHeader("Message-ID");
     final IMAPMessage repeatedMessage = Mockito.mock(IMAPMessage.class);
-    doReturn(new String[]{"313373"}).when(repeatedMessage).getHeader("Message-Id");
+    doReturn(new String[]{"313373"}).when(repeatedMessage).getHeader("Message-ID");
     index.getFolderMessages("FolderName").add(new MessageId(repeatedMessage));
     doReturn(new Message[]{message, repeatedMessage}).when(folder).getMessages(eq(0), eq(100));
     // When
@@ -122,7 +122,7 @@ class FolderCrawlerTest {
     final FolderCrawler folderCrawler = new FolderCrawler(
         imapStore, "FolderName", 0, 100, index, connection);
     final IMAPMessage message = Mockito.mock(IMAPMessage.class);
-    doThrow(new MessagingException()).when(message).getHeader("Message-Id");
+    doThrow(new MessagingException()).when(message).getHeader("Message-ID");
     doReturn(new Message[]{message}).when(folder).getMessages(eq(0), eq(100));
     // When
     folderCrawler.run();

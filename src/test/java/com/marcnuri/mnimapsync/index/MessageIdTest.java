@@ -53,13 +53,10 @@ public class MessageIdTest {
   void constructor_allValidFields_shouldReturnMessageId() throws Exception {
     // Given
     final IMAPMessage imapMessage = Mockito.mock(IMAPMessage.class);
-    doReturn(new String[]{"Id!\"·$%&/-1337"}).when(imapMessage).getHeader("Message-Id");
+    doReturn(new String[]{"Id!\"·$%&/-1337"}).when(imapMessage).getHeader("Message-ID");
     doReturn(new String[]{"\"Mr. Pink\" <mrpink@email.com>"}).when(imapMessage).getHeader("From");
-    doReturn(new String[]{
-        "\"Mr. Blonde\" <mrblonde@email.com>",
-        "mrblue@email.com",
-        "<mrorange@email.com>",
-    }).when(imapMessage).getHeader("To");
+    doReturn("\"Mr. Blonde\" <mrblonde@email.com>, mrblue@email.com, <mrorange@email.com>")
+        .when(imapMessage).getHeader("To", ",");
     doReturn(new String[]{"Subje#ctNº1^*!·%"}).when(imapMessage).getHeader("Subject");
     // When
     final MessageId messageId = new MessageId(imapMessage);
@@ -72,16 +69,10 @@ public class MessageIdTest {
   void equalTo_matchingToInDifferentOrderAndFormat_shouldBeEqual() throws Exception {
     // Given
     final IMAPMessage imapMessage = Mockito.mock(IMAPMessage.class);
-    doReturn(new String[]{"SAME ID FOR BOTH"}).when(imapMessage).getHeader("Message-Id");
-    doReturn(new String[]{
-        "\"Mr. Blonde\" <mrblonde@email.com>",
-        "mrblue@email.com",
-        "<mrorange@email.com>",
-    }).doReturn(new String[]{
-        "mrorange@email.com",
-        "\"Mr. Blue\" <mrblue@email.com>",
-        "\"Mr. Blonde\" <mrblonde@email.com>",
-    }).when(imapMessage).getHeader("To");
+    doReturn(new String[]{"SAME ID FOR BOTH"}).when(imapMessage).getHeader("Message-ID");
+    doReturn("\"Mr. Blonde\" <mrblonde@email.com>, mrblue@email.com, <mrorange@email.com>")
+        .doReturn("mrorange@email.com, \"Mr. Blue\" <mrblue@email.com>, \"Mr. Blonde\" <mrblonde@email.com>")
+        .when(imapMessage).getHeader("To", ",");
     final MessageId firstMessageId = new MessageId(imapMessage);
     final MessageId secondMessageId = new MessageId(imapMessage);
     // When
@@ -95,16 +86,10 @@ public class MessageIdTest {
   void equalTo_nonMatchingToInDifferentOrderAndFormat_shouldNotBeEqual() throws Exception {
     // Given
     final IMAPMessage imapMessage = Mockito.mock(IMAPMessage.class);
-    doReturn(new String[]{"SAME ID FOR BOTH"}).when(imapMessage).getHeader("Message-Id");
-    doReturn(new String[]{
-        "\"Mr. Blonde\" <mrblonde@email.com>",
-        "mrblue@email.com",
-        "<mrorange@email.com>",
-    }).doReturn(new String[]{
-        "mrorange@email.com",
-        "\"Mr. Blue\" <mrblue.different@email.com>",
-        "\"Mr. Blonde\" <mrblonde@email.com>",
-    }).when(imapMessage).getHeader("To");
+    doReturn(new String[]{"SAME ID FOR BOTH"}).when(imapMessage).getHeader("Message-ID");
+    doReturn("\"Mr. Blonde\" <mrblonde@email.com>, mrblue@email.com, <mrorange@email.com>")
+        .doReturn("mrorange@email.com, \"Mr. Blue\" <mrblue.different@email.com>, \"Mr. Blonde\" <mrblonde@email.com>")
+        .when(imapMessage).getHeader("To", ",");
     final MessageId firstMessageId = new MessageId(imapMessage);
     final MessageId secondMessageId = new MessageId(imapMessage);
     // When
