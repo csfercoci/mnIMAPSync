@@ -26,4 +26,11 @@ class HostDefinitionTest {
 
     assertThrows(IllegalArgumentException.class, () -> hostDefinition.setReadTimeout(0));
   }
+
+  @Test
+  void setWatchInterval_zero_shouldThrowException() {
+    final SyncOptions syncOptions = new SyncOptions();
+
+    assertThrows(IllegalArgumentException.class, () -> syncOptions.setWatchInterval(0));
+  }
 }

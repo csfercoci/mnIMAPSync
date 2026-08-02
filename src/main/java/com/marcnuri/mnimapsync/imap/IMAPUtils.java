@@ -52,6 +52,12 @@ public class IMAPUtils {
    */
   public static IMAPStore openStore(HostDefinition hostDefinition, int threads)
       throws MessagingException, GeneralSecurityException {
+
+    return openStore(hostDefinition, threads, false);
+  }
+
+  public static IMAPStore openStore(HostDefinition hostDefinition, int threads,
+      boolean useSocketChannels) throws MessagingException, GeneralSecurityException {
     final Properties properties = new Properties();
     properties.put("mail.debug", "false");
     final String protocol = hostDefinition.isSsl() ? "imaps" : "imap";
@@ -69,6 +75,9 @@ public class IMAPUtils {
     properties.setProperty("mail." + protocol + ".timeout", String.valueOf(hostDefinition.getReadTimeout()));
     properties.setProperty("mail." + protocol + ".writetimeout",
         String.valueOf(hostDefinition.getReadTimeout()));
+    if (useSocketChannels) {
+      properties.setProperty("mail." + protocol + ".usesocketchannels", "true");
+    }
     if (hostDefinition.isSsl()) {
       properties.put("mail.imaps.ssl.enable", true);
       properties.put("mail.imaps.ssl.checkserveridentity", true);

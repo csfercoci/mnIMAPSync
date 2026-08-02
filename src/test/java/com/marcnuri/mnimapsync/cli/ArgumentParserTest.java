@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 
 import static com.marcnuri.mnimapsync.cli.ArgumentParser.parseCliArguments;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -155,6 +156,27 @@ class ArgumentParserTest {
     assertThat(result.getTargetHost().getReadTimeout(), is(2000));
   }
 
+  @Test
+  void parseCliArguments_watchOptions_shouldEnableContinuousSynchronization() {
+    final String[] arguments = appendOption(
+        appendOption(appendFlag(validArguments(), "--watch"), "--watch-folder", "Archive"),
+        "--watch-interval", "60");
+
+    final SyncOptions result = parseCliArguments(arguments);
+
+    assertThat(result.getWatch(), is(true));
+    assertThat(result.getWatchFolder(), is("Archive"));
+    assertThat(result.getWatchInterval(), is(60));
+  }
+
+  @Test
+  void parseCliArguments_watchWithoutFolder_shouldMonitorAllMessageFolders() {
+    final SyncOptions result = parseCliArguments(appendFlag(validArguments(), "--watch"));
+
+    assertThat(result.getWatch(), is(true));
+    assertThat(result.getWatchFolder(), is(nullValue()));
+  }
+
   private static String[] validArguments() {
     return new String[]{
         "--host1", "mail.source.com",
@@ -184,6 +206,13 @@ class ArgumentParserTest {
     System.arraycopy(arguments, 0, result, 0, arguments.length);
     result[arguments.length] = key;
     result[arguments.length + 1] = value;
+    return result;
+  }
+
+  private static String[] appendFlag(String[] arguments, String key) {
+    final String[] result = new String[arguments.length + 1];
+    System.arraycopy(arguments, 0, result, 0, arguments.length);
+    result[arguments.length] = key;
     return result;
   }
 }

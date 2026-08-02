@@ -134,21 +134,33 @@ public class MNIMAPSync {
         }
     }
 
+    @SuppressWarnings({"squid:S106", "UseOfSystemOutOrSystemErr"})
+    static void synchronizeAndReport(SyncOptions syncOptions) {
+        final MNIMAPSync sync = new MNIMAPSync(syncOptions);
+        final Timer timer = new Timer(true);
+        timer.schedule(new SyncMonitor(sync), 1000L, 1000L);
+        sync.sync();
+        timer.cancel();
+        try {
+            System.out.println(String.format("\r%s", getSummaryReportAsText(sync)));
+        } catch (IOException exception) {
+            Logger.getLogger(MNIMAPSync.class.getName()).log(Level.SEVERE, null, exception);
+        }
+    }
+
     /**
      * @param args the command line arguments
      */
     @SuppressWarnings({"squid:S106", "UseOfSystemOutOrSystemErr"})
     public static void main(String[] args) {
         try {
-            final MNIMAPSync sync = new MNIMAPSync(parseCliArguments(args));
-            final Timer timer = new Timer(true);
-            timer.schedule(
-                new SyncMonitor(sync),
-                1000L, 1000L);
-            sync.sync();
-            timer.cancel();
-            System.out.println(String.format("\r%s", getSummaryReportAsText(sync)));
-        } catch (IllegalArgumentException | IOException ex) {
+            final SyncOptions syncOptions = parseCliArguments(args);
+            if (syncOptions.getWatch()) {
+                new ImapIdleWatcher(syncOptions).watch();
+            } else {
+                synchronizeAndReport(syncOptions);
+            }
+        } catch (IllegalArgumentException ex) {
             System.err.println(ex.getMessage());
         }
     }

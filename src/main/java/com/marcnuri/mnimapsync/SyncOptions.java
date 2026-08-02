@@ -31,12 +31,18 @@ public class SyncOptions implements Serializable {
     private final HostDefinition targetHost;
     private boolean delete;
     private int threads;
+    private boolean watch;
+    private String watchFolder;
+    private int watchInterval;
 
     public SyncOptions() {
         this.sourceHost = new HostDefinition();
         this.targetHost = new HostDefinition();
         delete = false;
         threads = MNIMAPSync.THREADS;
+        watch = false;
+        watchFolder = null;
+        watchInterval = 300;
     }
 
     public HostDefinition getSourceHost() {
@@ -63,6 +69,36 @@ public class SyncOptions implements Serializable {
         this.threads = threads;
     }
 
+    public boolean getWatch() {
+        return watch;
+    }
+
+    public void setWatch(boolean watch) {
+        this.watch = watch;
+    }
+
+    public String getWatchFolder() {
+        return watchFolder;
+    }
+
+    public void setWatchFolder(String watchFolder) {
+        if (watchFolder == null || watchFolder.trim().isEmpty()) {
+            throw new IllegalArgumentException("watchFolder must not be empty");
+        }
+        this.watchFolder = watchFolder;
+    }
+
+    public int getWatchInterval() {
+        return watchInterval;
+    }
+
+    public void setWatchInterval(int watchInterval) {
+        if (watchInterval < 1) {
+            throw new IllegalArgumentException("watchInterval must be greater than zero");
+        }
+        this.watchInterval = watchInterval;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -74,13 +110,16 @@ public class SyncOptions implements Serializable {
         SyncOptions that = (SyncOptions) o;
         return delete == that.delete &&
             threads == that.threads &&
+            watch == that.watch &&
+            watchInterval == that.watchInterval &&
             Objects.equals(sourceHost, that.sourceHost) &&
-            Objects.equals(targetHost, that.targetHost);
+            Objects.equals(targetHost, that.targetHost) &&
+            Objects.equals(watchFolder, that.watchFolder);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(sourceHost, targetHost, delete, threads);
+        return Objects.hash(sourceHost, targetHost, delete, threads, watch, watchFolder, watchInterval);
     }
 
 }

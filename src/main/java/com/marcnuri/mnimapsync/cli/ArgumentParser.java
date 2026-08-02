@@ -42,13 +42,13 @@ public class ArgumentParser {
       result.getSourceHost().setHost(cmd.getOptionValue("host1"));
       result.getSourceHost().setPort(parsePortValue("port1", cmd.getOptionValue("port1")));
       result.getSourceHost().setUser(cmd.getOptionValue("user1"));
-      result.getSourceHost().setPassword(cmd.getOptionValue("password1"));
+      result.getSourceHost().setPassword(resolvePassword(cmd, "password1", "password1-env"));
       result.getSourceHost().setSsl(cmd.hasOption("ssl1"));
 
       result.getTargetHost().setHost(cmd.getOptionValue("host2"));
       result.getTargetHost().setPort(parsePortValue("port2", cmd.getOptionValue("port2")));
       result.getTargetHost().setUser(cmd.getOptionValue("user2"));
-      result.getTargetHost().setPassword(cmd.getOptionValue("password2"));
+      result.getTargetHost().setPassword(resolvePassword(cmd, "password2", "password2-env"));
       result.getTargetHost().setSsl(cmd.hasOption("ssl2"));
 
       if (cmd.hasOption("retries")) {
@@ -72,6 +72,14 @@ public class ArgumentParser {
       if (cmd.hasOption("threads")) {
         result.setThreads(parsePositiveIntValue("threads", cmd.getOptionValue("threads")));
       }
+      result.setWatch(cmd.hasOption("watch"));
+      if (cmd.hasOption("watch-folder")) {
+        result.setWatchFolder(cmd.getOptionValue("watch-folder"));
+      }
+      if (cmd.hasOption("watch-interval")) {
+        result.setWatchInterval(parsePositiveIntValue("watch-interval",
+            cmd.getOptionValue("watch-interval")));
+      }
 
     } catch (ParseException e) {
       throw toIllegalArgumentException(e);
@@ -86,13 +94,17 @@ public class ArgumentParser {
     options.addOption(Option.builder().longOpt("host1").hasArg().desc("Source host").required().build());
     options.addOption(Option.builder().longOpt("port1").hasArg().desc("Source port").required().build());
     options.addOption(Option.builder().longOpt("user1").hasArg().desc("Source user").required().build());
-    options.addOption(Option.builder().longOpt("password1").hasArg().desc("Source password").required().build());
+    options.addOption(Option.builder().longOpt("password1").hasArg().desc("Source password").build());
+    options.addOption(Option.builder().longOpt("password1-env").hasArg()
+        .desc("Environment variable containing the source password").build());
     options.addOption(Option.builder().longOpt("ssl1").desc("Enable SSL for source").build());
 
     options.addOption(Option.builder().longOpt("host2").hasArg().desc("Target host").required().build());
     options.addOption(Option.builder().longOpt("port2").hasArg().desc("Target port").required().build());
     options.addOption(Option.builder().longOpt("user2").hasArg().desc("Target user").required().build());
-    options.addOption(Option.builder().longOpt("password2").hasArg().desc("Target password").required().build());
+    options.addOption(Option.builder().longOpt("password2").hasArg().desc("Target password").build());
+    options.addOption(Option.builder().longOpt("password2-env").hasArg()
+        .desc("Environment variable containing the target password").build());
     options.addOption(Option.builder().longOpt("ssl2").desc("Enable SSL for target").build());
 
     options.addOption(Option.builder().longOpt("delete").desc("Enable delete operation").build());
@@ -102,8 +114,32 @@ public class ArgumentParser {
         .desc("Connection timeout in milliseconds").build());
     options.addOption(Option.builder().longOpt("read-timeout").hasArg()
         .desc("Read and write timeout in milliseconds").build());
+    options.addOption(Option.builder().longOpt("watch")
+        .desc("Keep an IMAP IDLE connection open and sync on source changes").build());
+    options.addOption(Option.builder().longOpt("watch-folder").hasArg()
+        .desc("Restrict IMAP IDLE to one source folder; default watches all message folders").build());
+    options.addOption(Option.builder().longOpt("watch-interval").hasArg()
+        .desc("Fallback full-sync interval in seconds, default 300").build());
 
     return options;
+  }
+
+  private static String resolvePassword(CommandLine commandLine, String passwordOption,
+      String passwordEnvironmentOption) {
+    if (commandLine.hasOption(passwordOption)) {
+      return commandLine.getOptionValue(passwordOption);
+    }
+    if (commandLine.hasOption(passwordEnvironmentOption)) {
+      final String environmentName = commandLine.getOptionValue(passwordEnvironmentOption);
+      final String password = System.getenv(environmentName);
+      if (password != null && !password.isEmpty()) {
+        return password;
+      }
+      throw new IllegalArgumentException("Environment variable " + environmentName
+          + " for --" + passwordEnvironmentOption + " is missing or empty");
+    }
+    throw new IllegalArgumentException("--" + passwordOption + " or --" + passwordEnvironmentOption
+        + " is required");
   }
 
   private static IllegalArgumentException toIllegalArgumentException(ParseException exception) {

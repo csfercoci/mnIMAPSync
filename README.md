@@ -59,17 +59,22 @@ There is an instructable available at [blog.marcnuri.com](http://blog.marcnuri.c
 |`--port1`*|IMAP port of the source mail server.|
 |`--user1`*|User name for the account on the source mail server.|
 |`--password1`*|Password for the account on the source mail server.|
+|`--password1-env`|Environment variable containing the source password; use instead of `--password1` to keep it out of the process arguments.|
 |`--ssl1`|Optional parameter indicating if the program should connect using SSL to the source server.|
 |`--host2`*|Host of the target mail server.|
 |`--port2`*|IMAP port of the target mail server.|
 |`--user2`*|User name for the account on the target mail server.|
 |`--password2`*|Password for the account on the target mail server.|
+|`--password2-env`|Environment variable containing the target password; use instead of `--password2` to keep it out of the process arguments.|
 |`--ssl2`|Optional parameter indicating if the program should connect using SSL to the target server.|
 |`--threads`|Number of threads to use. Some servers limit concurrent IMAP connections. Default: `5`.|
 |`--delete`|Delete messages and folders in the target that do not exist in the source. Disabled by default.|
 |`--retries`|Number of retries after an initial transient connection failure. Default: `3`. Authentication failures are never retried.|
 |`--connect-timeout`|Connection timeout in milliseconds, applied to both hosts. Default: `30000`.|
 |`--read-timeout`|Read and write timeout in milliseconds, applied to both hosts. Default: `60000`.|
+|`--watch`|Keep a source IMAP `IDLE` connection open and synchronize immediately after source changes.|
+|`--watch-folder`|Restrict IMAP `IDLE` to one source folder. Without it, all source message folders are monitored.|
+|`--watch-interval`|Fallback full-sync interval in seconds while watching. Default: `300`.|
 \*Required arguments
 
 ### Credentials and TLS
@@ -110,6 +115,25 @@ retried with linear backoff: one second before the first retry, two seconds befo
 so on. Authentication errors fail immediately. A later IMAP operation that fails stops the copy
 phase and prevents the optional delete phase, so it cannot cause cleanup from an incomplete source
 view.
+
+### Continuous synchronization with IMAP IDLE
+
+Use `--watch` to run an initial synchronization and then keep every source folder that contains
+messages open in IMAP `IDLE` mode:
+
+```Batchfile
+java -jar mnIMAPSync.jar --host1 imap.example.com --port1 993 --user1 source --password1 password --ssl1 --host2 backup.example.com --port2 993 --user2 target --password2 password --ssl2 --watch --watch-interval 300
+```
+
+New messages, message removals, and server-reported flag changes trigger an on-the-fly sync. Events
+received while a sync is running are coalesced into one additional sync after it completes. The
+source `IDLE` connections reconnect after an interruption, and the fallback interval refreshes the
+folder list so newly created source folders are included.
+
+IMAP requires a selected connection for each concurrently watched folder. Accounts with many
+folders can exceed their server connection limit. Use `--watch-folder <folder>` to monitor only a
+specific folder, typically `INBOX`, and rely on `--watch-interval` for periodic synchronization of
+the remaining folders.
 
 ## Motivation
 When using [imapsync](http://imapsync.lamiral.info/) to sync different servers I'm getting lots of 

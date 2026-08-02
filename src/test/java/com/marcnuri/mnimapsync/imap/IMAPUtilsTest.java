@@ -168,6 +168,30 @@ class IMAPUtilsTest {
   }
 
   @Test
+  void openStore_idleConnection_shouldEnableSocketChannels() throws Exception {
+    final IMAPStore mockedStore = mock(IMAPStore.class);
+    doReturn(mockedStore).when(session).getStore(eq("imap"));
+    final HostDefinition hostDefinition = new HostDefinition();
+    hostDefinition.setHost("mail.host");
+    hostDefinition.setPort(143);
+    hostDefinition.setUser("the-user");
+    hostDefinition.setPassword("the-pw");
+    final AtomicReference<Properties> configuredProperties = new AtomicReference<>();
+
+    try (MockedStatic<Session> mockedSession = mockStatic(Session.class)) {
+      mockedSession.when(() -> Session.getInstance(any(Properties.class), eq((Authenticator) null)))
+          .thenAnswer(invocation -> {
+            configuredProperties.set((Properties) invocation.getArgument(0));
+            return session;
+          });
+      openStore(hostDefinition, 1, true);
+    }
+
+    assertThat(configuredProperties.get().getProperty("mail.imap.usesocketchannels"),
+        equalTo("true"));
+  }
+
+  @Test
   void sourceFolderNameToTarget_sourceIsInbox_shouldReturnTargetInboxName() {
     // Given
     final String sourceFolderFullName = "InBox";
